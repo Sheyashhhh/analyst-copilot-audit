@@ -31,18 +31,7 @@ The project separates **offline validation** (which needs no model API) from **l
 | **Experiment** | Four cumulative prompt conditions: DDL only (C0), plus column descriptions (C1), plus rules and metric definitions (C2), plus a lint-and-retry guardrail (C3). Same questions, paired comparison, Wilson and bootstrap intervals, cost and latency per query |
 | **Outputs** | A failure taxonomy, a SQL guardrail with measured detection, prevention, recovery and false-block rates, and a per-family automation policy |
 
-## Model results
 
-<!-- RESULTS:START -->
-> **Not yet run in this repository snapshot.** Everything below this section is measured on the warehouse and the guardrail without a model. Live-model accuracy, semantic-layer lift, cost and latency need an API key, and this repository will not display numbers it has not measured.
->
-> ```
-> python -m copilot_audit run --set all      # 96 questions x C0..C3
-> python -m copilot_audit publish            # replaces this block with the real results
-> ```
->
-> `publish` refuses scripted self-test runs. `results/SELFTEST_REPORT.md` shows the report format on scripted data; its 100% and 17.5% are produced by construction and are not model accuracy.
-<!-- RESULTS:END -->
 
 ## The three worst failures, measured
 
