@@ -1,0 +1,152 @@
+# Trap: fact_orders.is_deleted and dim_customer.is_deleted. Each trap query is identical to
+# the gold query except that it omits the soft-delete predicate.
+- id: SD01
+  family: soft_delete
+  difficulty: easy
+  grain: order
+  question: "How many orders have been placed in total?"
+  gold_sql: |
+    SELECT count(*) AS orders FROM fact_orders WHERE NOT is_deleted
+  naive_sql: |
+    SELECT count(*) AS orders FROM fact_orders
+  expected_failure: SOFT_DELETE_IGNORED
+
+- id: SD02
+  family: soft_delete
+  difficulty: easy
+  grain: order
+  question: "How many orders were placed in 2017?"
+  gold_sql: |
+    SELECT count(*) AS orders
+    FROM fact_orders
+    WHERE NOT is_deleted
+      AND order_purchase_ts >= TIMESTAMP '2017-01-01' AND order_purchase_ts < TIMESTAMP '2018-01-01'
+  naive_sql: |
+    SELECT count(*) AS orders
+    FROM fact_orders
+    WHERE order_purchase_ts >= TIMESTAMP '2017-01-01' AND order_purchase_ts < TIMESTAMP '2018-01-01'
+  expected_failure: SOFT_DELETE_IGNORED
+
+- id: SD03
+  family: soft_delete
+  difficulty: medium
+  grain: order
+  question: "How many orders were placed by customers located in the state of SP?"
+  gold_sql: |
+    SELECT count(*) AS orders
+    FROM fact_orders o
+    JOIN dim_customer c ON c.customer_key = o.customer_key
+    WHERE NOT o.is_deleted AND c.state = 'SP'
+  naive_sql: |
+    SELECT count(*) AS orders
+    FROM fact_orders o
+    JOIN dim_customer c ON c.customer_key = o.customer_key
+    WHERE c.state = 'SP'
+  expected_failure: SOFT_DELETE_IGNORED
+
+- id: SD04
+  family: soft_delete
+  difficulty: easy
+  question: "What is the average review score across all reviews, rounded to 4 decimals?"
+  gold_sql: |
+    SELECT round(avg(r.review_score), 4) AS avg_score
+    FROM fact_reviews r
+    JOIN fact_orders o ON o.order_id = r.order_id
+    WHERE NOT o.is_deleted
+  naive_sql: |
+    SELECT round(avg(review_score), 4) AS avg_score FROM fact_reviews
+  expected_failure: SOFT_DELETE_IGNORED
+
+- id: SD05
+  family: soft_delete
+  difficulty: medium
+  question: "What is the total freight value charged across all orders?"
+  gold_sql: |
+    SELECT sum(i.freight_value) AS freight
+    FROM fact_order_items i
+    JOIN fact_orders o ON o.order_id = i.order_id
+    WHERE NOT o.is_deleted
+  naive_sql: |
+    SELECT sum(freight_value) AS freight FROM fact_order_items
+  expected_failure: SOFT_DELETE_IGNORED
+
+- id: SD06
+  family: soft_delete
+  difficulty: easy
+  grain: order
+  ordered: true
+  question: "How many orders were placed in each month of 2018? Return the month number and the order count, ordered by month."
+  gold_sql: |
+    SELECT month(order_purchase_ts) AS month, count(*) AS orders
+    FROM fact_orders
+    WHERE NOT is_deleted
+      AND order_purchase_ts >= TIMESTAMP '2018-01-01' AND order_purchase_ts < TIMESTAMP '2019-01-01'
+    GROUP BY 1
+    ORDER BY 1
+  naive_sql: |
+    SELECT month(order_purchase_ts) AS month, count(*) AS orders
+    FROM fact_orders
+    WHERE order_purchase_ts >= TIMESTAMP '2018-01-01' AND order_purchase_ts < TIMESTAMP '2019-01-01'
+    GROUP BY 1
+    ORDER BY 1
+  expected_failure: SOFT_DELETE_IGNORED
+
+- id: SD07
+  family: soft_delete
+  difficulty: medium
+  question: "What is the total payment value for each payment type?"
+  gold_sql: |
+    SELECT p.payment_type, sum(p.payment_value) AS total_payment_value
+    FROM fact_payments p
+    JOIN fact_orders o ON o.order_id = p.order_id
+    WHERE NOT o.is_deleted
+    GROUP BY 1
+  naive_sql: |
+    SELECT payment_type, sum(payment_value) AS total_payment_value
+    FROM fact_payments
+    GROUP BY 1
+  expected_failure: SOFT_DELETE_IGNORED
+
+- id: SD08
+  family: soft_delete
+  difficulty: easy
+  grain: order
+  question: "How many orders have no items attached to them?"
+  gold_sql: |
+    SELECT count(*) AS orders FROM fact_orders WHERE NOT is_deleted AND item_count = 0
+  naive_sql: |
+    SELECT count(*) AS orders FROM fact_orders WHERE item_count = 0
+  expected_failure: SOFT_DELETE_IGNORED
+
+- id: SD09
+  family: soft_delete
+  difficulty: medium
+  ordered: true
+  question: "Which 5 states have the most customers? Count each person once. Return the state and customer count, highest first, breaking ties alphabetically."
+  gold_sql: |
+    SELECT state, count(DISTINCT customer_unique_id) AS customers
+    FROM dim_customer
+    WHERE NOT is_deleted
+    GROUP BY state
+    ORDER BY customers DESC, state
+    LIMIT 5
+  naive_sql: |
+    SELECT state, count(DISTINCT customer_unique_id) AS customers
+    FROM dim_customer
+    GROUP BY state
+    ORDER BY customers DESC, state
+    LIMIT 5
+  expected_failure: SOFT_DELETE_IGNORED
+
+- id: SD10
+  family: soft_delete
+  difficulty: medium
+  question: "How many sellers have sold at least one item?"
+  gold_sql: |
+    SELECT count(DISTINCT i.seller_key) AS sellers
+    FROM fact_order_items i
+    JOIN fact_orders o ON o.order_id = i.order_id
+    WHERE NOT o.is_deleted
+  naive_sql: |
+    SELECT count(DISTINCT seller_key) AS sellers FROM fact_order_items
+  expected_failure: SOFT_DELETE_IGNORED

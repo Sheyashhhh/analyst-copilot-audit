@@ -1,0 +1,8 @@
+duckdb>=1.1
+pandas>=2.2
+numpy>=1.26
+pyyaml>=6.0
+sqlglot>=25.0
+matplotlib>=3.8
+anthropic>=0.40
+pytest>=8.0

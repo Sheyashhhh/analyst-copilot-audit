@@ -1,0 +1,131 @@
+# Trap: fact_orders.order_status carries mixed casing and stray whitespace.
+# Each trap query is correct in every respect except it compares the raw status string.
+- id: ST01
+  family: status_case
+  difficulty: easy
+  grain: order
+  question: "How many orders were delivered?"
+  gold_sql: |
+    SELECT count(*) AS orders
+    FROM fact_orders
+    WHERE NOT is_deleted AND lower(trim(order_status)) = 'delivered'
+  naive_sql: |
+    SELECT count(*) AS orders
+    FROM fact_orders
+    WHERE NOT is_deleted AND order_status = 'delivered'
+  expected_failure: STATUS_CASE_MISMATCH
+
+- id: ST02
+  family: status_case
+  difficulty: easy
+  grain: order
+  question: "How many orders were canceled?"
+  gold_sql: |
+    SELECT count(*) AS orders
+    FROM fact_orders
+    WHERE NOT is_deleted AND lower(trim(order_status)) = 'canceled'
+  naive_sql: |
+    SELECT count(*) AS orders
+    FROM fact_orders
+    WHERE NOT is_deleted AND order_status = 'canceled'
+  expected_failure: STATUS_CASE_MISMATCH
+
+- id: ST03
+  family: status_case
+  difficulty: easy
+  grain: order
+  question: "How many orders are there in each order status?"
+  gold_sql: |
+    SELECT lower(trim(order_status)) AS order_status, count(*) AS orders
+    FROM fact_orders
+    WHERE NOT is_deleted
+    GROUP BY 1
+  naive_sql: |
+    SELECT order_status, count(*) AS orders
+    FROM fact_orders
+    WHERE NOT is_deleted
+    GROUP BY 1
+  expected_failure: STATUS_CASE_MISMATCH
+
+- id: ST04
+  family: status_case
+  difficulty: medium
+  grain: order
+  question: "What percentage of orders were delivered? Round to 2 decimals."
+  gold_sql: |
+    SELECT round(100.0 * count(*) FILTER (WHERE lower(trim(order_status)) = 'delivered') / count(*), 2) AS delivered_pct
+    FROM fact_orders
+    WHERE NOT is_deleted
+  naive_sql: |
+    SELECT round(100.0 * count(*) FILTER (WHERE order_status = 'delivered') / count(*), 2) AS delivered_pct
+    FROM fact_orders
+    WHERE NOT is_deleted
+  expected_failure: STATUS_CASE_MISMATCH
+
+- id: ST05
+  family: status_case
+  difficulty: easy
+  grain: order
+  question: "How many orders are currently in the 'shipped' status?"
+  gold_sql: |
+    SELECT count(*) AS orders
+    FROM fact_orders
+    WHERE NOT is_deleted AND lower(trim(order_status)) = 'shipped'
+  naive_sql: |
+    SELECT count(*) AS orders
+    FROM fact_orders
+    WHERE NOT is_deleted AND order_status = 'shipped'
+  expected_failure: STATUS_CASE_MISMATCH
+
+- id: ST06
+  family: status_case
+  difficulty: medium
+  grain: order
+  question: "How many orders were either canceled or unavailable?"
+  gold_sql: |
+    SELECT count(*) AS orders
+    FROM fact_orders
+    WHERE NOT is_deleted AND lower(trim(order_status)) IN ('canceled', 'unavailable')
+  naive_sql: |
+    SELECT count(*) AS orders
+    FROM fact_orders
+    WHERE NOT is_deleted AND order_status IN ('canceled', 'unavailable')
+  expected_failure: STATUS_CASE_MISMATCH
+
+- id: ST07
+  family: status_case
+  difficulty: medium
+  question: "What is the average number of days between purchase and delivery to the customer for delivered orders? Use fractional days and round to 2 decimals."
+  gold_sql: |
+    SELECT round(avg(date_diff('second', order_purchase_ts, order_delivered_customer_ts) / 86400.0), 2) AS avg_days
+    FROM fact_orders
+    WHERE NOT is_deleted AND lower(trim(order_status)) = 'delivered'
+  naive_sql: |
+    SELECT round(avg(date_diff('second', order_purchase_ts, order_delivered_customer_ts) / 86400.0), 2) AS avg_days
+    FROM fact_orders
+    WHERE NOT is_deleted AND order_status = 'delivered'
+  expected_failure: STATUS_CASE_MISMATCH
+
+- id: ST08
+  family: status_case
+  difficulty: medium
+  grain: order
+  ordered: true
+  question: "Which 5 customer states have the most delivered orders? Return the state and order count, highest first, breaking ties alphabetically."
+  gold_sql: |
+    SELECT c.state, count(*) AS orders
+    FROM fact_orders o
+    JOIN dim_customer c ON c.customer_key = o.customer_key
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+    GROUP BY c.state
+    ORDER BY orders DESC, c.state
+    LIMIT 5
+  naive_sql: |
+    SELECT c.state, count(*) AS orders
+    FROM fact_orders o
+    JOIN dim_customer c ON c.customer_key = o.customer_key
+    WHERE NOT o.is_deleted AND o.order_status = 'delivered'
+    GROUP BY c.state
+    ORDER BY orders DESC, c.state
+    LIMIT 5
+  expected_failure: STATUS_CASE_MISMATCH

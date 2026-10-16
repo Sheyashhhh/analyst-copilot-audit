@@ -1,0 +1,8 @@
+# USD per million tokens. Verify against https://platform.claude.com/docs/en/about-claude/pricing before quoting costs.
+# Reasoning tokens are billed as output tokens, so they are included in `output_tokens` by the API usage object.
+claude-sonnet-5-5:
+  input_per_mtok: 2.00
+  output_per_mtok: 10.00
+claude-opus-5-5:
+  input_per_mtok: 4.00
+  output_per_mtok: 20.00

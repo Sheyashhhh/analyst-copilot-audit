@@ -1,0 +1,309 @@
+# Trap: one-to-many joins. fact_orders (1) -> fact_order_items (N), fact_payments (N), fact_reviews (N).
+# Items, payments and reviews are siblings: joining two of them multiplies rows (M:N through order_id).
+# Trap queries are identical to gold except for the grain error.
+- id: FO01
+  family: fanout
+  difficulty: medium
+  grain: order
+  ordered: true
+  question: "Which 10 product categories appear in the most orders? Return the category and the number of orders, highest first, breaking ties alphabetically."
+  gold_sql: |
+    SELECT p.category_name AS category, count(DISTINCT o.order_id) AS orders
+    FROM fact_orders o
+    JOIN fact_order_items i ON i.order_id = o.order_id
+    JOIN dim_product p ON p.product_key = i.product_key
+    WHERE NOT o.is_deleted
+    GROUP BY 1
+    ORDER BY orders DESC, category
+    LIMIT 10
+  naive_sql: |
+    SELECT p.category_name AS category, count(*) AS orders
+    FROM fact_orders o
+    JOIN fact_order_items i ON i.order_id = o.order_id
+    JOIN dim_product p ON p.product_key = i.product_key
+    WHERE NOT o.is_deleted
+    GROUP BY 1
+    ORDER BY orders DESC, category
+    LIMIT 10
+  expected_failure: FANOUT_INFLATION
+
+- id: FO02
+  family: fanout
+  difficulty: medium
+  grain: order
+  question: "How many orders used each payment type? An order that used several payment types counts once under each."
+  gold_sql: |
+    SELECT p.payment_type, count(DISTINCT p.order_id) AS orders
+    FROM fact_payments p
+    JOIN fact_orders o ON o.order_id = p.order_id
+    WHERE NOT o.is_deleted
+    GROUP BY 1
+  naive_sql: |
+    SELECT p.payment_type, count(*) AS orders
+    FROM fact_payments p
+    JOIN fact_orders o ON o.order_id = p.order_id
+    WHERE NOT o.is_deleted
+    GROUP BY 1
+  expected_failure: FANOUT_INFLATION
+
+- id: FO03
+  family: fanout
+  difficulty: hard
+  ordered: true
+  question: "For each month of 2017, show the item revenue (sum of item prices) and the total payments received (sum of payment values) for delivered orders. Return the month as a date, the item revenue and the payments, ordered by month."
+  gold_sql: |
+    WITH rev AS (
+      SELECT date_trunc('month', o.order_purchase_ts)::DATE AS month, sum(i.price) AS item_revenue
+      FROM fact_orders o JOIN fact_order_items i ON i.order_id = o.order_id
+      WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+        AND o.order_purchase_ts >= TIMESTAMP '2017-01-01' AND o.order_purchase_ts < TIMESTAMP '2018-01-01'
+      GROUP BY 1
+    ), pay AS (
+      SELECT date_trunc('month', o.order_purchase_ts)::DATE AS month, sum(p.payment_value) AS payments
+      FROM fact_orders o JOIN fact_payments p ON p.order_id = o.order_id
+      WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+        AND o.order_purchase_ts >= TIMESTAMP '2017-01-01' AND o.order_purchase_ts < TIMESTAMP '2018-01-01'
+      GROUP BY 1
+    )
+    SELECT rev.month, rev.item_revenue, pay.payments
+    FROM rev JOIN pay USING (month)
+    ORDER BY 1
+  naive_sql: |
+    SELECT date_trunc('month', o.order_purchase_ts)::DATE AS month,
+           sum(i.price) AS item_revenue,
+           sum(p.payment_value) AS payments
+    FROM fact_orders o
+    JOIN fact_order_items i ON i.order_id = o.order_id
+    JOIN fact_payments p ON p.order_id = o.order_id
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+      AND o.order_purchase_ts >= TIMESTAMP '2017-01-01' AND o.order_purchase_ts < TIMESTAMP '2018-01-01'
+    GROUP BY 1
+    ORDER BY 1
+  expected_failure: FANOUT_INFLATION
+
+- id: FO04
+  family: fanout
+  difficulty: hard
+  ordered: true
+  question: "What is the average review score of each product category? Count each review once per category it touches (an order with three items in one category still contributes one review to that category). Only consider categories with at least 100 such reviews and return the top 5 by average score, rounded to 2 decimals, breaking ties alphabetically."
+  gold_sql: |
+    WITH rc AS (
+      SELECT DISTINCT r.review_id, r.order_id, p.category_name, r.review_score
+      FROM fact_reviews r
+      JOIN fact_orders o ON o.order_id = r.order_id
+      JOIN fact_order_items i ON i.order_id = r.order_id
+      JOIN dim_product p ON p.product_key = i.product_key
+      WHERE NOT o.is_deleted AND p.category_name IS NOT NULL
+    )
+    SELECT category_name AS category, round(avg(review_score), 2) AS avg_score
+    FROM rc
+    GROUP BY 1
+    HAVING count(*) >= 100
+    ORDER BY avg_score DESC, category
+    LIMIT 5
+  naive_sql: |
+    SELECT p.category_name AS category, round(avg(r.review_score), 2) AS avg_score
+    FROM fact_reviews r
+    JOIN fact_orders o ON o.order_id = r.order_id
+    JOIN fact_order_items i ON i.order_id = r.order_id
+    JOIN dim_product p ON p.product_key = i.product_key
+    WHERE NOT o.is_deleted AND p.category_name IS NOT NULL
+    GROUP BY 1
+    HAVING count(*) >= 100
+    ORDER BY avg_score DESC, category
+    LIMIT 5
+  expected_failure: FANOUT_INFLATION
+
+- id: FO05
+  family: fanout
+  difficulty: hard
+  question: "What is the total freight value on orders that were paid at least partly with a voucher?"
+  gold_sql: |
+    SELECT sum(i.freight_value) AS freight
+    FROM fact_order_items i
+    JOIN fact_orders o ON o.order_id = i.order_id
+    WHERE NOT o.is_deleted
+      AND EXISTS (SELECT 1 FROM fact_payments p WHERE p.order_id = o.order_id AND p.payment_type = 'voucher')
+  naive_sql: |
+    SELECT sum(i.freight_value) AS freight
+    FROM fact_order_items i
+    JOIN fact_orders o ON o.order_id = i.order_id
+    JOIN fact_payments p ON p.order_id = o.order_id
+    WHERE NOT o.is_deleted AND p.payment_type = 'voucher'
+  expected_failure: FANOUT_INFLATION
+
+- id: FO06
+  family: fanout
+  difficulty: hard
+  metric: net_revenue
+  question: "What is the net revenue from orders that received at least one 5-star review?"
+  gold_sql: |
+    SELECT sum(i.price) AS revenue
+    FROM fact_order_items i
+    JOIN fact_orders o ON o.order_id = i.order_id
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+      AND EXISTS (SELECT 1 FROM fact_reviews r WHERE r.order_id = o.order_id AND r.review_score = 5)
+  naive_sql: |
+    SELECT sum(i.price) AS revenue
+    FROM fact_order_items i
+    JOIN fact_orders o ON o.order_id = i.order_id
+    JOIN fact_reviews r ON r.order_id = o.order_id
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered' AND r.review_score = 5
+  expected_failure: FANOUT_INFLATION
+
+- id: FO07
+  family: fanout
+  difficulty: medium
+  grain: order
+  question: "How many delivered orders contain at least one item priced above 500?"
+  gold_sql: |
+    SELECT count(DISTINCT o.order_id) AS orders
+    FROM fact_orders o
+    JOIN fact_order_items i ON i.order_id = o.order_id
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered' AND i.price > 500
+  naive_sql: |
+    SELECT count(*) AS orders
+    FROM fact_orders o
+    JOIN fact_order_items i ON i.order_id = o.order_id
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered' AND i.price > 500
+  expected_failure: FANOUT_INFLATION
+
+- id: FO08
+  family: fanout
+  difficulty: hard
+  question: "What is the average total payment per order for each payment type? An order that used several payment types is included under each. Round to 2 decimals."
+  gold_sql: |
+    SELECT t.payment_type, round(avg(o.order_payment_total), 2) AS avg_payment
+    FROM fact_orders o
+    JOIN (SELECT DISTINCT order_id, payment_type FROM fact_payments) t ON t.order_id = o.order_id
+    WHERE NOT o.is_deleted
+    GROUP BY 1
+  naive_sql: |
+    SELECT p.payment_type, round(avg(o.order_payment_total), 2) AS avg_payment
+    FROM fact_orders o
+    JOIN fact_payments p ON p.order_id = o.order_id
+    WHERE NOT o.is_deleted
+    GROUP BY 1
+  expected_failure: FANOUT_INFLATION
+
+- id: FO09
+  family: fanout
+  difficulty: hard
+  question: "What is the total payment value of orders that contain at least one 'health_beauty' item?"
+  gold_sql: |
+    SELECT sum(o.order_payment_total) AS payment_total
+    FROM fact_orders o
+    WHERE NOT o.is_deleted
+      AND EXISTS (
+        SELECT 1 FROM fact_order_items i JOIN dim_product p ON p.product_key = i.product_key
+        WHERE i.order_id = o.order_id AND p.category_name = 'health_beauty')
+  naive_sql: |
+    SELECT sum(o.order_payment_total) AS payment_total
+    FROM fact_orders o
+    JOIN fact_order_items i ON i.order_id = o.order_id
+    JOIN dim_product p ON p.product_key = i.product_key
+    WHERE NOT o.is_deleted AND p.category_name = 'health_beauty'
+  expected_failure: FANOUT_INFLATION
+
+- id: FO10
+  family: fanout
+  difficulty: medium
+  question: "What is the average total payment of orders that contain more than one item? Round to 2 decimals."
+  gold_sql: |
+    SELECT round(avg(order_payment_total), 2) AS avg_payment
+    FROM fact_orders
+    WHERE NOT is_deleted AND item_count > 1
+  naive_sql: |
+    SELECT round(avg(o.order_payment_total), 2) AS avg_payment
+    FROM fact_orders o
+    JOIN fact_order_items i ON i.order_id = o.order_id
+    WHERE NOT o.is_deleted AND o.item_count > 1
+  expected_failure: FANOUT_INFLATION
+
+- id: FO11
+  family: fanout
+  difficulty: hard
+  grain: order
+  ordered: true
+  question: "For each month from January to August 2018, how many orders were placed and how many items did those orders contain? Return the month number, order count and item count, ordered by month."
+  gold_sql: |
+    SELECT month(order_purchase_ts) AS month, count(*) AS orders, sum(item_count) AS items
+    FROM fact_orders
+    WHERE NOT is_deleted
+      AND order_purchase_ts >= TIMESTAMP '2018-01-01' AND order_purchase_ts < TIMESTAMP '2018-09-01'
+    GROUP BY 1
+    ORDER BY 1
+  naive_sql: |
+    SELECT month(o.order_purchase_ts) AS month, count(o.order_id) AS orders, count(i.order_item_id) AS items
+    FROM fact_orders o
+    LEFT JOIN fact_order_items i ON i.order_id = o.order_id
+    WHERE NOT o.is_deleted
+      AND o.order_purchase_ts >= TIMESTAMP '2018-01-01' AND o.order_purchase_ts < TIMESTAMP '2018-09-01'
+    GROUP BY 1
+    ORDER BY 1
+  expected_failure: FANOUT_INFLATION
+
+- id: FO12
+  family: fanout
+  difficulty: medium
+  grain: order
+  ordered: true
+  question: "Which 5 sellers fulfilled the most distinct orders? Return the seller_id and order count, highest first, breaking ties by seller_id."
+  gold_sql: |
+    SELECT s.seller_id, count(DISTINCT i.order_id) AS orders
+    FROM fact_order_items i
+    JOIN fact_orders o ON o.order_id = i.order_id
+    JOIN dim_seller s ON s.seller_key = i.seller_key
+    WHERE NOT o.is_deleted
+    GROUP BY 1
+    ORDER BY orders DESC, s.seller_id
+    LIMIT 5
+  naive_sql: |
+    SELECT s.seller_id, count(*) AS orders
+    FROM fact_order_items i
+    JOIN fact_orders o ON o.order_id = i.order_id
+    JOIN dim_seller s ON s.seller_key = i.seller_key
+    WHERE NOT o.is_deleted
+    GROUP BY 1
+    ORDER BY orders DESC, s.seller_id
+    LIMIT 5
+  expected_failure: FANOUT_INFLATION
+
+- id: FO13
+  family: fanout
+  difficulty: hard
+  metric: net_revenue
+  question: "What is the net revenue by payment type? An order that used several payment types counts toward each of them."
+  gold_sql: |
+    SELECT t.payment_type, sum(i.price) AS revenue
+    FROM fact_orders o
+    JOIN fact_order_items i ON i.order_id = o.order_id
+    JOIN (SELECT DISTINCT order_id, payment_type FROM fact_payments) t ON t.order_id = o.order_id
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+    GROUP BY 1
+  naive_sql: |
+    SELECT p.payment_type, sum(i.price) AS revenue
+    FROM fact_orders o
+    JOIN fact_order_items i ON i.order_id = o.order_id
+    JOIN fact_payments p ON p.order_id = o.order_id
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+    GROUP BY 1
+  expected_failure: FANOUT_INFLATION
+
+- id: FO14
+  family: fanout
+  difficulty: hard
+  question: "What is the average review score of orders that were paid with more than one payment? Round to 4 decimals."
+  gold_sql: |
+    SELECT round(avg(r.review_score), 4) AS avg_score
+    FROM fact_reviews r
+    JOIN fact_orders o ON o.order_id = r.order_id
+    WHERE NOT o.is_deleted
+      AND r.order_id IN (SELECT order_id FROM fact_payments GROUP BY order_id HAVING count(*) > 1)
+  naive_sql: |
+    SELECT round(avg(r.review_score), 4) AS avg_score
+    FROM fact_reviews r
+    JOIN fact_orders o ON o.order_id = r.order_id
+    JOIN fact_payments p ON p.order_id = o.order_id
+    WHERE NOT o.is_deleted AND p.payment_sequential >= 2
+  expected_failure: FANOUT_INFLATION

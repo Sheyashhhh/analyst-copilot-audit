@@ -1,0 +1,139 @@
+{
+  "n_questions": 16,
+  "n_wrong_variants": 32,
+  "n_correct_variants": 5,
+  "authoring_problems": [],
+  "detection_flagged": [
+    29,
+    32
+  ],
+  "prevention_blocked": [
+    20,
+    32
+  ],
+  "plain_variants": {
+    "n": 21,
+    "flagged": 20,
+    "blocked": 15
+  },
+  "evasive_variants": {
+    "n": 11,
+    "flagged": 9,
+    "blocked": 5
+  },
+  "false_blocks_correct_variants": [
+    0,
+    5
+  ],
+  "false_flags_correct_variants": [
+    0,
+    5
+  ],
+  "gold_blocked": 0,
+  "classifier_agreement": [
+    30,
+    32
+  ],
+  "by_class": {
+    "FANOUT_INFLATION": {
+      "n": 9,
+      "flagged": 9,
+      "blocked": 9
+    },
+    "UNATTRIBUTED_LOGIC_ERROR": {
+      "n": 1,
+      "flagged": 0,
+      "blocked": 0
+    },
+    "SOFT_DELETE_IGNORED": {
+      "n": 3,
+      "flagged": 3,
+      "blocked": 3
+    },
+    "ENTITY_GRAIN_ERROR": {
+      "n": 5,
+      "flagged": 5,
+      "blocked": 0
+    },
+    "STATUS_CASE_MISMATCH": {
+      "n": 4,
+      "flagged": 4,
+      "blocked": 4
+    },
+    "DATE_BOUNDARY_ERROR": {
+      "n": 4,
+      "flagged": 2,
+      "blocked": 2
+    },
+    "TIMEZONE_MISMATCH": {
+      "n": 2,
+      "flagged": 2,
+      "blocked": 2
+    },
+    "DEFINITION_DRIFT": {
+      "n": 4,
+      "flagged": 4,
+      "blocked": 0
+    }
+  },
+  "misses": [
+    {
+      "id": "H03",
+      "variant": 1,
+      "family": "fanout",
+      "expected": "UNATTRIBUTED_LOGIC_ERROR",
+      "evasive": false,
+      "classified": "UNATTRIBUTED_LOGIC_ERROR",
+      "decision": "ALLOW",
+      "rules": [],
+      "taxonomy_signals": []
+    },
+    {
+      "id": "H08",
+      "variant": 1,
+      "family": "date_boundary",
+      "expected": "DATE_BOUNDARY_ERROR",
+      "evasive": true,
+      "classified": "UNATTRIBUTED_LOGIC_ERROR",
+      "decision": "ALLOW",
+      "rules": [],
+      "taxonomy_signals": []
+    },
+    {
+      "id": "H09",
+      "variant": 1,
+      "family": "date_boundary",
+      "expected": "DATE_BOUNDARY_ERROR",
+      "evasive": true,
+      "classified": "UNATTRIBUTED_LOGIC_ERROR",
+      "decision": "ALLOW",
+      "rules": [],
+      "taxonomy_signals": []
+    }
+  ],
+  "false_blocks": [],
+  "misclassified": [
+    {
+      "id": "H08",
+      "variant": 1,
+      "family": "date_boundary",
+      "expected": "DATE_BOUNDARY_ERROR",
+      "evasive": true,
+      "classified": "UNATTRIBUTED_LOGIC_ERROR",
+      "decision": "ALLOW",
+      "rules": [],
+      "taxonomy_signals": []
+    },
+    {
+      "id": "H09",
+      "variant": 1,
+      "family": "date_boundary",
+      "expected": "DATE_BOUNDARY_ERROR",
+      "evasive": true,
+      "classified": "UNATTRIBUTED_LOGIC_ERROR",
+      "decision": "ALLOW",
+      "rules": [],
+      "taxonomy_signals": []
+    }
+  ]
+}

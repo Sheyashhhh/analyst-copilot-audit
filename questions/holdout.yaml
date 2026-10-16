@@ -1,0 +1,423 @@
+# HOLDOUT SET. Written after the rules, in different phrasing and SQL styles, to test generalisation.
+# Each question has a gold query, several WRONG variants (some deliberately evasive) and CORRECT variants
+# written unusually. None of these were used to design the linter or classifier.
+# wrong[].evasive = true marks variants written to avoid the shape the linter looks for.
+- id: H01
+  family: fanout
+  difficulty: hard
+  metric: net_revenue
+  question: "What is the net revenue of delivered orders that were paid by credit card?"
+  gold_sql: |
+    SELECT sum(i.price) AS revenue
+    FROM fact_order_items i JOIN fact_orders o ON o.order_id = i.order_id
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+      AND o.order_id IN (SELECT order_id FROM fact_payments WHERE payment_type = 'credit_card')
+  wrong:
+    - expected_failure: FANOUT_INFLATION
+      evasive: false
+      sql: |
+        SELECT sum(i.price) AS revenue
+        FROM fact_order_items i JOIN fact_orders o ON o.order_id = i.order_id
+        JOIN fact_payments p ON p.order_id = o.order_id
+        WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered' AND p.payment_type = 'credit_card'
+    - expected_failure: FANOUT_INFLATION
+      evasive: true
+      sql: |
+        WITH x AS (
+          SELECT i.price, o.order_id
+          FROM fact_orders o
+          JOIN fact_order_items i ON i.order_id = o.order_id
+          JOIN fact_payments p ON p.order_id = o.order_id
+          WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered' AND p.payment_type = 'credit_card')
+        SELECT sum(price) AS revenue FROM x
+
+- id: H02
+  family: fanout
+  difficulty: hard
+  question: "What is the average total payment of orders that contain items from more than one seller? Round to 2 decimals."
+  gold_sql: |
+    SELECT round(avg(o.order_payment_total), 2) AS avg_payment
+    FROM fact_orders o
+    WHERE NOT o.is_deleted
+      AND o.order_id IN (SELECT order_id FROM fact_order_items GROUP BY order_id HAVING count(DISTINCT seller_key) > 1)
+  wrong:
+    - expected_failure: FANOUT_INFLATION
+      evasive: false
+      sql: |
+        SELECT round(avg(o.order_payment_total), 2) AS avg_payment
+        FROM fact_orders o JOIN fact_order_items i ON i.order_id = o.order_id
+        WHERE NOT o.is_deleted
+        GROUP BY o.order_id HAVING count(DISTINCT i.seller_key) > 1
+    - expected_failure: FANOUT_INFLATION
+      evasive: true
+      sql: |
+        SELECT round(avg(t), 2) AS avg_payment
+        FROM (SELECT o.order_payment_total AS t, i.seller_key
+              FROM fact_orders o JOIN fact_order_items i ON i.order_id = o.order_id
+              WHERE NOT o.is_deleted AND o.order_id IN
+                (SELECT order_id FROM fact_order_items GROUP BY order_id HAVING count(DISTINCT seller_key) > 1)) z
+
+- id: H03
+  family: fanout
+  difficulty: medium
+  grain: review
+  question: "How many reviews were written for delivered orders that contained at least two items?"
+  gold_sql: |
+    SELECT count(*) AS reviews
+    FROM fact_reviews r JOIN fact_orders o ON o.order_id = r.order_id
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered' AND o.item_count >= 2
+  wrong:
+    - expected_failure: FANOUT_INFLATION
+      evasive: false
+      sql: |
+        SELECT count(*) AS reviews
+        FROM fact_reviews r JOIN fact_orders o ON o.order_id = r.order_id
+        JOIN fact_order_items i ON i.order_id = o.order_id
+        WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered' AND o.item_count >= 2
+    - expected_failure: UNATTRIBUTED_LOGIC_ERROR   # relabelled after the v1 freeze: wrong because of item_count >= 3, not fan-out
+      evasive: false
+      sql: |
+        SELECT count(r.review_id) AS reviews
+        FROM fact_orders o JOIN fact_reviews r ON r.order_id = o.order_id
+        JOIN fact_order_items i ON i.order_id = o.order_id
+        WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered' AND i.order_item_id = 2
+        AND o.item_count >= 3
+  correct:
+    - |
+      SELECT count(*) AS reviews
+      FROM fact_reviews r JOIN fact_orders o ON o.order_id = r.order_id
+      JOIN fact_order_items i ON i.order_id = o.order_id AND i.order_item_id = 2
+      WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+
+- id: H04
+  family: soft_delete
+  difficulty: medium
+  question: "How many distinct products were ordered in 2018?"
+  gold_sql: |
+    SELECT count(DISTINCT i.product_key) AS products
+    FROM fact_order_items i JOIN fact_orders o ON o.order_id = i.order_id
+    WHERE NOT o.is_deleted AND o.order_purchase_ts >= TIMESTAMP '2018-01-01' AND o.order_purchase_ts < TIMESTAMP '2019-01-01'
+  wrong:
+    - expected_failure: SOFT_DELETE_IGNORED
+      evasive: false
+      sql: |
+        SELECT count(DISTINCT i.product_key) AS products
+        FROM fact_order_items i JOIN fact_orders o ON o.order_id = i.order_id
+        WHERE o.order_purchase_ts >= TIMESTAMP '2018-01-01' AND o.order_purchase_ts < TIMESTAMP '2019-01-01'
+    - expected_failure: SOFT_DELETE_IGNORED
+      evasive: true
+      sql: |
+        SELECT count(DISTINCT product_key) AS products
+        FROM fact_order_items
+        WHERE order_id IN (SELECT order_id FROM fact_orders
+                           WHERE order_purchase_ts >= TIMESTAMP '2018-01-01' AND order_purchase_ts < TIMESTAMP '2019-01-01')
+  correct:
+    - |
+      SELECT count(DISTINCT i.product_key) AS products
+      FROM fact_order_items i JOIN fact_orders o ON o.order_id = i.order_id
+      WHERE o.deleted_at IS NULL AND year(o.order_purchase_ts) = 2018
+
+- id: H05
+  family: soft_delete
+  difficulty: medium
+  grain: customer
+  question: "How many customers in the state of RJ have placed at least one order?"
+  gold_sql: |
+    SELECT count(DISTINCT c.customer_unique_id) AS customers
+    FROM fact_orders o JOIN dim_customer c ON c.customer_key = o.customer_key
+    WHERE NOT o.is_deleted AND NOT c.is_deleted AND c.state = 'RJ'
+  wrong:
+    - expected_failure: SOFT_DELETE_IGNORED
+      evasive: false
+      sql: |
+        SELECT count(DISTINCT c.customer_unique_id) AS customers
+        FROM fact_orders o JOIN dim_customer c ON c.customer_key = o.customer_key
+        WHERE NOT o.is_deleted AND c.state = 'RJ'
+    - expected_failure: ENTITY_GRAIN_ERROR
+      evasive: false
+      sql: |
+        SELECT count(DISTINCT c.customer_id) AS customers
+        FROM fact_orders o JOIN dim_customer c ON c.customer_key = o.customer_key
+        WHERE NOT o.is_deleted AND NOT c.is_deleted AND c.state = 'RJ'
+
+- id: H06
+  family: status_case
+  difficulty: medium
+  grain: order
+  question: "What percentage of orders are in a status other than delivered? Round to 2 decimals."
+  gold_sql: |
+    SELECT round(100.0 * count(*) FILTER (WHERE lower(trim(order_status)) <> 'delivered') / count(*), 2) AS pct
+    FROM fact_orders WHERE NOT is_deleted
+  wrong:
+    - expected_failure: STATUS_CASE_MISMATCH
+      evasive: false
+      sql: |
+        SELECT round(100.0 * count(*) FILTER (WHERE order_status <> 'delivered') / count(*), 2) AS pct
+        FROM fact_orders WHERE NOT is_deleted
+    - expected_failure: STATUS_CASE_MISMATCH
+      evasive: false
+      sql: |
+        SELECT round(100.0 * count(*) FILTER (WHERE upper(order_status) <> 'DELIVERED') / count(*), 2) AS pct
+        FROM fact_orders WHERE NOT is_deleted
+
+- id: H07
+  family: status_case
+  difficulty: easy
+  grain: order
+  question: "How many orders are either shipped or invoiced?"
+  gold_sql: |
+    SELECT count(*) AS orders FROM fact_orders
+    WHERE NOT is_deleted AND lower(trim(order_status)) IN ('shipped', 'invoiced')
+  wrong:
+    - expected_failure: STATUS_CASE_MISMATCH
+      evasive: false
+      sql: |
+        SELECT count(*) AS orders FROM fact_orders
+        WHERE NOT is_deleted AND lower(order_status) IN ('shipped', 'invoiced')
+    - expected_failure: STATUS_CASE_MISMATCH
+      evasive: false
+      sql: |
+        SELECT count(*) AS orders FROM fact_orders
+        WHERE NOT is_deleted AND order_status IN ('shipped', 'invoiced', 'Shipped', 'Invoiced')
+  correct:
+    - |
+      SELECT count(*) AS orders FROM fact_orders
+      WHERE NOT is_deleted AND (order_status ILIKE '%shipped%' OR order_status ILIKE '%invoiced%')
+
+- id: H08
+  family: date_boundary
+  difficulty: medium
+  grain: order
+  question: "How many orders were purchased in the second quarter of 2017 (April to June)?"
+  gold_sql: |
+    SELECT count(*) AS orders FROM fact_orders
+    WHERE NOT is_deleted AND order_purchase_ts >= TIMESTAMP '2017-04-01' AND order_purchase_ts < TIMESTAMP '2017-07-01'
+  wrong:
+    - expected_failure: DATE_BOUNDARY_ERROR
+      evasive: false
+      sql: |
+        SELECT count(*) AS orders FROM fact_orders
+        WHERE NOT is_deleted AND order_purchase_ts >= '2017-04-01' AND order_purchase_ts <= '2017-06-30'
+    - expected_failure: DATE_BOUNDARY_ERROR
+      evasive: true
+      sql: |
+        SELECT count(*) AS orders FROM fact_orders
+        WHERE NOT is_deleted AND order_purchase_ts >= TIMESTAMP '2017-04-01' AND order_purchase_ts < DATE '2017-06-30'
+  correct:
+    - |
+      SELECT count(*) AS orders FROM fact_orders
+      WHERE NOT is_deleted AND date_trunc('month', order_purchase_ts) BETWEEN DATE '2017-04-01' AND DATE '2017-06-01'
+
+- id: H09
+  family: date_boundary
+  difficulty: medium
+  grain: order
+  question: "How many orders were delivered to customers between 1 and 15 March 2018, inclusive?"
+  gold_sql: |
+    SELECT count(*) AS orders FROM fact_orders
+    WHERE NOT is_deleted AND order_delivered_customer_ts >= TIMESTAMP '2018-03-01' AND order_delivered_customer_ts < TIMESTAMP '2018-03-16'
+  wrong:
+    - expected_failure: DATE_BOUNDARY_ERROR
+      evasive: false
+      sql: |
+        SELECT count(*) AS orders FROM fact_orders
+        WHERE NOT is_deleted AND order_delivered_customer_ts BETWEEN '2018-03-01' AND '2018-03-15'
+    - expected_failure: DATE_BOUNDARY_ERROR
+      evasive: true
+      sql: |
+        SELECT count(*) AS orders FROM fact_orders
+        WHERE NOT is_deleted AND order_delivered_customer_ts >= TIMESTAMP '2018-03-01' AND order_delivered_customer_ts < TIMESTAMP '2018-03-15'
+
+- id: H10
+  family: timezone
+  difficulty: hard
+  question: "How many reviews were answered on a Saturday or Sunday, in São Paulo local time?"
+  gold_sql: |
+    SELECT count(*) AS reviews
+    FROM fact_reviews r JOIN fact_orders o ON o.order_id = r.order_id
+    WHERE NOT o.is_deleted
+      AND isodow((r.review_answered_at AT TIME ZONE 'UTC') AT TIME ZONE 'America/Sao_Paulo') >= 6
+  wrong:
+    - expected_failure: TIMEZONE_MISMATCH
+      evasive: false
+      sql: |
+        SELECT count(*) AS reviews
+        FROM fact_reviews r JOIN fact_orders o ON o.order_id = r.order_id
+        WHERE NOT o.is_deleted AND isodow(r.review_answered_at) >= 6
+    - expected_failure: TIMEZONE_MISMATCH
+      evasive: true
+      sql: |
+        SELECT count(*) AS reviews
+        FROM fact_reviews r JOIN fact_orders o ON o.order_id = r.order_id
+        WHERE NOT o.is_deleted AND isodow(r.review_answered_at - INTERVAL 3 HOUR) >= 6
+
+- id: H11
+  family: definition
+  difficulty: medium
+  metric: net_revenue
+  question: "What was our revenue in the third quarter of 2017?"
+  gold_sql: |
+    SELECT sum(i.price) AS revenue
+    FROM fact_orders o JOIN fact_order_items i ON i.order_id = o.order_id
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+      AND o.order_purchase_ts >= TIMESTAMP '2017-07-01' AND o.order_purchase_ts < TIMESTAMP '2017-10-01'
+  wrong:
+    - expected_failure: DEFINITION_DRIFT
+      evasive: false
+      sql: |
+        SELECT sum(i.price) AS revenue
+        FROM fact_orders o JOIN fact_order_items i ON i.order_id = o.order_id
+        WHERE NOT o.is_deleted
+          AND o.order_purchase_ts >= TIMESTAMP '2017-07-01' AND o.order_purchase_ts < TIMESTAMP '2017-10-01'
+    - expected_failure: DEFINITION_DRIFT
+      evasive: true
+      sql: |
+        SELECT sum(i.price) AS revenue
+        FROM fact_orders o JOIN fact_order_items i ON i.order_id = o.order_id
+        WHERE NOT o.is_deleted AND lower(trim(o.order_status)) IN ('delivered', 'shipped')
+          AND o.order_purchase_ts >= TIMESTAMP '2017-07-01' AND o.order_purchase_ts < TIMESTAMP '2017-10-01'
+
+- id: H12
+  family: definition
+  difficulty: hard
+  metric: freight_ratio
+  question: "For delivered orders shipped by sellers in SP, what percentage of net revenue is freight? Round to 2 decimals."
+  gold_sql: |
+    SELECT round(100.0 * sum(i.freight_value) / sum(i.price), 2) AS pct
+    FROM fact_orders o JOIN fact_order_items i ON i.order_id = o.order_id
+    JOIN dim_seller s ON s.seller_key = i.seller_key
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered' AND s.state = 'SP'
+  wrong:
+    - expected_failure: DEFINITION_DRIFT
+      evasive: false
+      sql: |
+        SELECT round(100.0 * sum(i.freight_value) / sum(i.price + i.freight_value), 2) AS pct
+        FROM fact_orders o JOIN fact_order_items i ON i.order_id = o.order_id
+        JOIN dim_seller s ON s.seller_key = i.seller_key
+        WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered' AND s.state = 'SP'
+    - expected_failure: DEFINITION_DRIFT
+      evasive: true
+      sql: |
+        SELECT round(100.0 * sum(i.freight_value) / (sum(i.price) + sum(i.freight_value)), 2) AS pct
+        FROM fact_orders o JOIN fact_order_items i ON i.order_id = o.order_id
+        JOIN dim_seller s ON s.seller_key = i.seller_key
+        WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered' AND s.state = 'SP'
+
+- id: H13
+  family: entity_grain
+  difficulty: hard
+  grain: customer
+  question: "On average, how many orders does a customer in the state of SP place? Round to 2 decimals."
+  gold_sql: |
+    SELECT round(count(*) * 1.0 / count(DISTINCT c.customer_unique_id), 2) AS orders_per_customer
+    FROM fact_orders o JOIN dim_customer c ON c.customer_key = o.customer_key
+    WHERE NOT o.is_deleted AND NOT c.is_deleted AND c.state = 'SP'
+  wrong:
+    - expected_failure: ENTITY_GRAIN_ERROR
+      evasive: false
+      sql: |
+        SELECT round(count(DISTINCT o.order_id) * 1.0 / count(DISTINCT c.customer_key), 2) AS orders_per_customer
+        FROM fact_orders o JOIN dim_customer c ON c.customer_key = o.customer_key
+        WHERE NOT o.is_deleted AND NOT c.is_deleted AND c.state = 'SP'
+    - expected_failure: ENTITY_GRAIN_ERROR
+      evasive: true
+      sql: |
+        SELECT round(avg(n), 2) AS orders_per_customer
+        FROM (SELECT count(*) AS n FROM fact_orders o JOIN dim_customer c ON c.customer_key = o.customer_key
+              WHERE NOT o.is_deleted AND NOT c.is_deleted AND c.state = 'SP' GROUP BY o.customer_key) t
+
+- id: H14
+  family: entity_grain
+  difficulty: hard
+  grain: customer
+  question: "How many customers have bought from more than one product category (in non-deleted orders)?"
+  gold_sql: |
+    SELECT count(*) AS customers FROM (
+      SELECT c.customer_unique_id
+      FROM fact_orders o JOIN dim_customer c ON c.customer_key = o.customer_key
+      JOIN fact_order_items i ON i.order_id = o.order_id
+      JOIN dim_product p ON p.product_key = i.product_key
+      WHERE NOT o.is_deleted AND NOT c.is_deleted AND p.category_name IS NOT NULL
+      GROUP BY 1 HAVING count(DISTINCT p.category_name) > 1)
+  wrong:
+    - expected_failure: ENTITY_GRAIN_ERROR
+      evasive: false
+      sql: |
+        SELECT count(*) AS customers FROM (
+          SELECT c.customer_id
+          FROM fact_orders o JOIN dim_customer c ON c.customer_key = o.customer_key
+          JOIN fact_order_items i ON i.order_id = o.order_id
+          JOIN dim_product p ON p.product_key = i.product_key
+          WHERE NOT o.is_deleted AND NOT c.is_deleted AND p.category_name IS NOT NULL
+          GROUP BY 1 HAVING count(DISTINCT p.category_name) > 1)
+    - expected_failure: ENTITY_GRAIN_ERROR
+      evasive: true
+      sql: |
+        SELECT count(DISTINCT o.customer_key) AS customers
+        FROM fact_orders o JOIN fact_order_items i ON i.order_id = o.order_id
+        JOIN dim_product p ON p.product_key = i.product_key
+        WHERE NOT o.is_deleted AND p.category_name IS NOT NULL
+        GROUP BY o.customer_key HAVING count(DISTINCT p.category_name) > 1
+
+- id: H15
+  family: fanout
+  difficulty: hard
+  question: "How many items were sold under each payment type? An order that used several payment types counts toward each of them."
+  gold_sql: |
+    SELECT t.payment_type, sum(o.item_count) AS items
+    FROM fact_orders o
+    JOIN (SELECT DISTINCT order_id, payment_type FROM fact_payments) t ON t.order_id = o.order_id
+    WHERE NOT o.is_deleted
+    GROUP BY 1
+  wrong:
+    - expected_failure: FANOUT_INFLATION
+      evasive: false
+      sql: |
+        SELECT p.payment_type, count(*) AS items
+        FROM fact_order_items i JOIN fact_orders o ON o.order_id = i.order_id
+        JOIN fact_payments p ON p.order_id = o.order_id
+        WHERE NOT o.is_deleted
+        GROUP BY 1
+    - expected_failure: FANOUT_INFLATION
+      evasive: false
+      sql: |
+        SELECT p.payment_type, sum(o.item_count) AS items
+        FROM fact_orders o JOIN fact_payments p ON p.order_id = o.order_id
+        WHERE NOT o.is_deleted
+        GROUP BY 1
+
+- id: H16
+  family: fanout
+  difficulty: medium
+  question: "What is the average review score for each customer state, using delivered orders only? Round to 2 decimals."
+  gold_sql: |
+    SELECT c.state, round(avg(r.review_score), 2) AS avg_score
+    FROM fact_reviews r JOIN fact_orders o ON o.order_id = r.order_id
+    JOIN dim_customer c ON c.customer_key = o.customer_key
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+    GROUP BY 1
+  wrong:
+    - expected_failure: FANOUT_INFLATION
+      evasive: false
+      sql: |
+        SELECT c.state, round(avg(r.review_score), 2) AS avg_score
+        FROM fact_reviews r JOIN fact_orders o ON o.order_id = r.order_id
+        JOIN dim_customer c ON c.customer_key = o.customer_key
+        JOIN fact_order_items i ON i.order_id = o.order_id
+        WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+        GROUP BY 1
+    - expected_failure: FANOUT_INFLATION
+      evasive: true
+      sql: |
+        WITH base AS (
+          SELECT c.state, r.review_score
+          FROM fact_reviews r JOIN fact_orders o ON o.order_id = r.order_id
+          JOIN dim_customer c ON c.customer_key = o.customer_key
+          JOIN fact_order_items i ON i.order_id = o.order_id
+          WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered')
+        SELECT state, round(avg(review_score), 2) AS avg_score FROM base GROUP BY 1
+  correct:
+    - |
+      SELECT c.state, round(avg(r.review_score), 2) AS avg_score
+      FROM fact_orders o JOIN dim_customer c USING (customer_key) JOIN fact_reviews r USING (order_id)
+      WHERE o.is_deleted IS NOT TRUE AND trim(lower(o.order_status)) = 'delivered' GROUP BY c.state

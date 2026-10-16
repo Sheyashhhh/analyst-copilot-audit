@@ -1,0 +1,145 @@
+# Trap: order_purchase_ts and friends are TIMESTAMPs. A date-only upper bound
+# ('2018-03-31') means midnight, silently dropping the whole last day.
+- id: DB01
+  family: date_boundary
+  difficulty: medium
+  grain: order
+  question: "How many orders were placed in the first quarter of 2018 (1 January to 31 March, inclusive)?"
+  gold_sql: |
+    SELECT count(*) AS orders
+    FROM fact_orders
+    WHERE NOT is_deleted
+      AND order_purchase_ts >= TIMESTAMP '2018-01-01' AND order_purchase_ts < TIMESTAMP '2018-04-01'
+  naive_sql: |
+    SELECT count(*) AS orders
+    FROM fact_orders
+    WHERE NOT is_deleted
+      AND order_purchase_ts BETWEEN '2018-01-01' AND '2018-03-31'
+  expected_failure: DATE_BOUNDARY_ERROR
+
+- id: DB02
+  family: date_boundary
+  difficulty: easy
+  grain: order
+  question: "How many orders were placed on 24 November 2017?"
+  gold_sql: |
+    SELECT count(*) AS orders
+    FROM fact_orders
+    WHERE NOT is_deleted
+      AND order_purchase_ts >= TIMESTAMP '2017-11-24' AND order_purchase_ts < TIMESTAMP '2017-11-25'
+  naive_sql: |
+    SELECT count(*) AS orders
+    FROM fact_orders
+    WHERE NOT is_deleted AND order_purchase_ts = DATE '2017-11-24'
+  expected_failure: DATE_BOUNDARY_ERROR
+
+- id: DB03
+  family: date_boundary
+  difficulty: medium
+  metric: net_revenue
+  question: "What was the net revenue for orders placed in the first half of 2018 (1 January to 30 June, inclusive)?"
+  gold_sql: |
+    SELECT sum(i.price) AS revenue
+    FROM fact_orders o
+    JOIN fact_order_items i ON i.order_id = o.order_id
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+      AND o.order_purchase_ts >= TIMESTAMP '2018-01-01' AND o.order_purchase_ts < TIMESTAMP '2018-07-01'
+  naive_sql: |
+    SELECT sum(i.price) AS revenue
+    FROM fact_orders o
+    JOIN fact_order_items i ON i.order_id = o.order_id
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+      AND o.order_purchase_ts >= '2018-01-01' AND o.order_purchase_ts <= '2018-06-30'
+  expected_failure: DATE_BOUNDARY_ERROR
+
+- id: DB04
+  family: date_boundary
+  difficulty: easy
+  grain: order
+  question: "How many orders were placed in December 2017?"
+  gold_sql: |
+    SELECT count(*) AS orders
+    FROM fact_orders
+    WHERE NOT is_deleted
+      AND order_purchase_ts >= TIMESTAMP '2017-12-01' AND order_purchase_ts < TIMESTAMP '2018-01-01'
+  naive_sql: |
+    SELECT count(*) AS orders
+    FROM fact_orders
+    WHERE NOT is_deleted
+      AND order_purchase_ts >= '2017-12-01' AND order_purchase_ts <= '2017-12-31'
+  expected_failure: DATE_BOUNDARY_ERROR
+
+- id: DB05
+  family: date_boundary
+  difficulty: medium
+  grain: order
+  ordered: true
+  question: "How many orders were placed on each day from 7 May 2018 to 13 May 2018, inclusive? Return the date and the order count, ordered by date."
+  gold_sql: |
+    SELECT order_purchase_ts::DATE AS day, count(*) AS orders
+    FROM fact_orders
+    WHERE NOT is_deleted
+      AND order_purchase_ts >= TIMESTAMP '2018-05-07' AND order_purchase_ts < TIMESTAMP '2018-05-14'
+    GROUP BY 1
+    ORDER BY 1
+  naive_sql: |
+    SELECT order_purchase_ts::DATE AS day, count(*) AS orders
+    FROM fact_orders
+    WHERE NOT is_deleted
+      AND order_purchase_ts BETWEEN '2018-05-07' AND '2018-05-13'
+    GROUP BY 1
+    ORDER BY 1
+  expected_failure: DATE_BOUNDARY_ERROR
+
+- id: DB06
+  family: date_boundary
+  difficulty: medium
+  grain: order
+  question: "How many orders were delivered to customers in February 2018?"
+  gold_sql: |
+    SELECT count(*) AS orders
+    FROM fact_orders
+    WHERE NOT is_deleted
+      AND order_delivered_customer_ts >= TIMESTAMP '2018-02-01'
+      AND order_delivered_customer_ts < TIMESTAMP '2018-03-01'
+  naive_sql: |
+    SELECT count(*) AS orders
+    FROM fact_orders
+    WHERE NOT is_deleted
+      AND order_delivered_customer_ts BETWEEN '2018-02-01' AND '2018-02-28'
+  expected_failure: DATE_BOUNDARY_ERROR
+
+- id: DB07
+  family: date_boundary
+  difficulty: medium
+  grain: order
+  question: "How many orders were placed in the last 7 days of the reporting period (25 to 31 August 2018, inclusive)?"
+  gold_sql: |
+    SELECT count(*) AS orders
+    FROM fact_orders
+    WHERE NOT is_deleted
+      AND order_purchase_ts >= TIMESTAMP '2018-08-25' AND order_purchase_ts < TIMESTAMP '2018-09-01'
+  naive_sql: |
+    SELECT count(*) AS orders
+    FROM fact_orders
+    WHERE NOT is_deleted
+      AND order_purchase_ts >= '2018-08-25' AND order_purchase_ts <= '2018-08-31'
+  expected_failure: DATE_BOUNDARY_ERROR
+
+- id: DB08
+  family: date_boundary
+  difficulty: medium
+  question: "How many order items had a shipping limit date in July 2018?"
+  gold_sql: |
+    SELECT count(*) AS items
+    FROM fact_order_items i
+    JOIN fact_orders o ON o.order_id = i.order_id
+    WHERE NOT o.is_deleted
+      AND i.shipping_limit_ts >= TIMESTAMP '2018-07-01' AND i.shipping_limit_ts < TIMESTAMP '2018-08-01'
+  naive_sql: |
+    SELECT count(*) AS items
+    FROM fact_order_items i
+    JOIN fact_orders o ON o.order_id = i.order_id
+    WHERE NOT o.is_deleted
+      AND i.shipping_limit_ts BETWEEN '2018-07-01' AND '2018-07-31'
+  expected_failure: DATE_BOUNDARY_ERROR

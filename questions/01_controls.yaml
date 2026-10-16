@@ -1,0 +1,119 @@
+# Control questions: dimension-only lookups with no trap. They establish the floor
+# ("what does the model get right when nothing is hidden") and mark the safe-to-automate zone.
+- id: CT01
+  family: control
+  difficulty: easy
+  question: "How many sellers are registered on the marketplace?"
+  gold_sql: |
+    SELECT count(*) AS sellers FROM dim_seller
+
+- id: CT02
+  family: control
+  difficulty: easy
+  question: "Which 5 states have the most sellers? Return the state and seller count, highest first, breaking ties alphabetically by state."
+  ordered: true
+  gold_sql: |
+    SELECT state, count(*) AS sellers
+    FROM dim_seller
+    GROUP BY state
+    ORDER BY sellers DESC, state
+    LIMIT 5
+
+- id: CT03
+  family: control
+  difficulty: easy
+  question: "How many distinct product categories exist? Ignore products that have no category."
+  gold_sql: |
+    SELECT count(DISTINCT category_name) AS categories FROM dim_product
+
+- id: CT04
+  family: control
+  difficulty: easy
+  question: "Which 5 product categories contain the most products? Return the category and product count, highest first, breaking ties alphabetically."
+  ordered: true
+  gold_sql: |
+    SELECT category_name AS category, count(*) AS products
+    FROM dim_product
+    WHERE category_name IS NOT NULL
+    GROUP BY category_name
+    ORDER BY products DESC, category
+    LIMIT 5
+
+- id: CT05
+  family: control
+  difficulty: easy
+  question: "What is the average weight in grams of products in the 'toys' category, rounded to 2 decimals?"
+  gold_sql: |
+    SELECT round(avg(weight_g), 2) AS avg_weight_g
+    FROM dim_product
+    WHERE category_name = 'toys'
+
+- id: CT06
+  family: control
+  difficulty: easy
+  question: "How many products have no category assigned?"
+  gold_sql: |
+    SELECT count(*) AS products FROM dim_product WHERE category_name IS NULL
+
+- id: CT07
+  family: control
+  difficulty: easy
+  question: "How many days of 2017 fall on a weekend?"
+  gold_sql: |
+    SELECT count(*) AS weekend_days FROM dim_date WHERE year = 2017 AND is_weekend
+
+- id: CT08
+  family: control
+  difficulty: easy
+  question: "Which seller city has the most sellers, and how many sellers is that?"
+  ordered: true
+  gold_sql: |
+    SELECT city, count(*) AS sellers
+    FROM dim_seller
+    GROUP BY city
+    ORDER BY sellers DESC, city
+    LIMIT 1
+
+- id: CT09
+  family: control
+  difficulty: easy
+  question: "What is the weight in grams of the heaviest product?"
+  gold_sql: |
+    SELECT max(weight_g) AS max_weight_g FROM dim_product
+
+- id: CT10
+  family: control
+  difficulty: easy
+  question: "How many products have more than 5 photos?"
+  gold_sql: |
+    SELECT count(*) AS products FROM dim_product WHERE photos_qty > 5
+
+- id: CT11
+  family: control
+  difficulty: easy
+  question: "In how many distinct states do we have at least one seller?"
+  gold_sql: |
+    SELECT count(DISTINCT state) AS states FROM dim_seller
+
+- id: CT12
+  family: control
+  difficulty: easy
+  question: "What is the average product description length (in characters) for the 'furniture_decor' category, rounded to 2 decimals?"
+  gold_sql: |
+    SELECT round(avg(description_length), 2) AS avg_description_length
+    FROM dim_product
+    WHERE category_name = 'furniture_decor'
+
+- id: CT13
+  family: control
+  difficulty: easy
+  question: "On average, how many photos does a product have? Round to 2 decimals."
+  gold_sql: |
+    SELECT round(avg(photos_qty), 2) AS avg_photos FROM dim_product
+
+- id: CT14
+  family: control
+  difficulty: easy
+  question: "How many products belong to a category whose name contains the word 'home'?"
+  gold_sql: |
+    SELECT count(*) AS products FROM dim_product WHERE category_name LIKE '%home%'

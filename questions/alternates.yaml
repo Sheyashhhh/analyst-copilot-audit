@@ -1,0 +1,112 @@
+# Independently-written CORRECT alternatives to the gold SQL. They exist to prove two things:
+#   1. the result-set comparator accepts any correct formulation (no string matching), and
+#   2. the linter does not block correct SQL written in a different style.
+SD01:
+  - SELECT count(*) AS n FROM fact_orders WHERE is_deleted = FALSE
+ST01:
+  - |
+    WITH v AS (SELECT * FROM fact_orders WHERE NOT is_deleted)
+    SELECT count(*) AS delivered FROM v WHERE trim(lower(order_status)) = 'delivered'
+ST03:
+  - SELECT trim(lower(order_status)) AS s, count(*) AS c FROM fact_orders WHERE is_deleted IS NOT TRUE GROUP BY 1
+DB01:
+  - |
+    SELECT count(*) FROM fact_orders
+    WHERE NOT is_deleted AND order_purchase_ts::DATE BETWEEN DATE '2018-01-01' AND DATE '2018-03-31'
+DB02:
+  - SELECT count(*) FROM fact_orders WHERE NOT is_deleted AND CAST(order_purchase_ts AS DATE) = DATE '2017-11-24'
+DB04:
+  - SELECT count(*) FROM fact_orders WHERE NOT is_deleted AND year(order_purchase_ts) = 2017 AND month(order_purchase_ts) = 12
+FO01:
+  - |
+    SELECT category, count(*) AS orders
+    FROM (SELECT DISTINCT o.order_id, p.category_name AS category
+          FROM fact_orders o
+          JOIN fact_order_items i ON i.order_id = o.order_id
+          JOIN dim_product p ON p.product_key = i.product_key
+          WHERE NOT o.is_deleted)
+    GROUP BY 1 ORDER BY orders DESC, category LIMIT 10
+FO02:
+  - |
+    SELECT payment_type, count(*) AS n
+    FROM (SELECT DISTINCT order_id, payment_type FROM fact_payments
+          WHERE order_id IN (SELECT order_id FROM fact_orders WHERE NOT is_deleted))
+    GROUP BY 1
+FO03:
+  - |
+    WITH per_order AS (
+      SELECT o.order_id, date_trunc('month', o.order_purchase_ts)::DATE AS m,
+             (SELECT sum(i.price) FROM fact_order_items i WHERE i.order_id = o.order_id) AS rev,
+             (SELECT sum(p.payment_value) FROM fact_payments p WHERE p.order_id = o.order_id) AS pay
+      FROM fact_orders o
+      WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+        AND o.order_purchase_ts >= TIMESTAMP '2017-01-01' AND o.order_purchase_ts < TIMESTAMP '2018-01-01')
+    SELECT m AS month, sum(rev) AS item_revenue, sum(pay) AS payments
+    FROM per_order GROUP BY 1 HAVING sum(rev) IS NOT NULL AND sum(pay) IS NOT NULL ORDER BY 1
+FO05:
+  - |
+    SELECT sum(i.freight_value) AS freight
+    FROM fact_order_items i
+    WHERE i.order_id IN (SELECT order_id FROM fact_orders WHERE NOT is_deleted)
+      AND i.order_id IN (SELECT order_id FROM fact_payments WHERE payment_type = 'voucher')
+FO07:
+  - |
+    SELECT count(*) AS n FROM fact_orders o
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+      AND o.order_id IN (SELECT order_id FROM fact_order_items WHERE price > 500)
+FO11:
+  - |
+    SELECT month(o.order_purchase_ts) AS m, count(*) AS orders, sum(coalesce(x.n, 0)) AS items
+    FROM fact_orders o
+    LEFT JOIN (SELECT order_id, count(*) AS n FROM fact_order_items GROUP BY 1) x USING (order_id)
+    WHERE NOT o.is_deleted AND o.order_purchase_ts >= TIMESTAMP '2018-01-01' AND o.order_purchase_ts < TIMESTAMP '2018-09-01'
+    GROUP BY 1 ORDER BY 1
+FO12:
+  - |
+    SELECT s.seller_id, count(*) AS orders
+    FROM (SELECT DISTINCT i.seller_key, i.order_id
+          FROM fact_order_items i JOIN fact_orders o ON o.order_id = i.order_id
+          WHERE NOT o.is_deleted) x
+    JOIN dim_seller s ON s.seller_key = x.seller_key
+    GROUP BY 1 ORDER BY orders DESC, s.seller_id LIMIT 5
+TZ01:
+  - |
+    SELECT count(*) FROM fact_reviews r JOIN fact_orders o ON o.order_id = r.order_id
+    WHERE NOT o.is_deleted
+      AND timezone('America/Sao_Paulo', timezone('UTC', r.review_answered_at))::DATE = DATE '2018-03-05'
+TZ02:
+  - |
+    SELECT extract(hour FROM timezone('America/Sao_Paulo', timezone('UTC', r.review_answered_at)))::INT AS h
+    FROM fact_reviews r JOIN fact_orders o USING (order_id)
+    WHERE NOT o.is_deleted GROUP BY 1 ORDER BY count(*) DESC, 1 LIMIT 1
+DF05:
+  - |
+    SELECT count(DISTINCT c.customer_unique_id) FROM fact_orders o JOIN dim_customer c USING (customer_key)
+    WHERE NOT o.is_deleted AND NOT c.is_deleted AND lower(trim(o.order_status)) NOT IN ('canceled','unavailable')
+      AND o.order_purchase_ts::DATE > DATE '2018-08-31' - INTERVAL 90 DAY AND o.order_purchase_ts::DATE <= DATE '2018-08-31'
+DF04:
+  - |
+    WITH per_order AS (
+      SELECT o.order_id, sum(i.price) AS t FROM fact_orders o JOIN fact_order_items i ON i.order_id = o.order_id
+      WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+        AND o.order_purchase_ts >= TIMESTAMP '2017-01-01' AND o.order_purchase_ts < TIMESTAMP '2018-01-01'
+      GROUP BY 1)
+    SELECT round(avg(t), 2) AS aov FROM per_order
+DF08:
+  - |
+    SELECT round(100.0 * avg(CASE WHEN date_diff('day', o.order_estimated_delivery_ts::DATE, o.order_delivered_customer_ts::DATE) > 0 THEN 1 ELSE 0 END), 2)
+    FROM fact_orders o
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered' AND o.order_delivered_customer_ts IS NOT NULL
+EN01:
+  - |
+    SELECT count(DISTINCT customer_unique_id) AS n FROM dim_customer c
+    WHERE NOT c.is_deleted AND c.customer_key IN (SELECT customer_key FROM fact_orders WHERE NOT is_deleted)
+EN03:
+  - |
+    WITH per AS (
+      SELECT c.customer_unique_id AS u, count(*) AS n
+      FROM fact_orders o JOIN dim_customer c ON c.customer_key = o.customer_key
+      WHERE NOT o.is_deleted AND NOT c.is_deleted GROUP BY 1)
+    SELECT count(*) AS repeat_customers FROM per WHERE n >= 2
+SD09:
+  - SELECT state, count(DISTINCT customer_unique_id) AS n FROM dim_customer WHERE NOT is_deleted GROUP BY ALL ORDER BY n DESC, state LIMIT 5

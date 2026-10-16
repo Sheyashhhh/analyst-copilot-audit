@@ -1,0 +1,1082 @@
+{
+  "n_questions": 80,
+  "n_trap_queries": 66,
+  "all_traps_change_the_answer": true,
+  "classifier_agreement": {
+    "agree": 66,
+    "total": 66
+  },
+  "guardrail": {
+    "gold": {
+      "ALLOW": 60,
+      "REVIEW": 20
+    },
+    "trap": {
+      "BLOCK": 43,
+      "ALLOW": 7,
+      "REVIEW": 16
+    },
+    "alt": {
+      "ALLOW": 18,
+      "REVIEW": 3
+    }
+  },
+  "rows": [
+    {
+      "id": "SD01",
+      "family": "soft_delete",
+      "expected": "SOFT_DELETE_IGNORED",
+      "classified": "SOFT_DELETE_IGNORED",
+      "differs_from_gold": true,
+      "gold": 96989.0,
+      "trap": 99441.0,
+      "ratio": 1.0252812174576498,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G01"
+      ]
+    },
+    {
+      "id": "SD02",
+      "family": "soft_delete",
+      "expected": "SOFT_DELETE_IGNORED",
+      "classified": "SOFT_DELETE_IGNORED",
+      "differs_from_gold": true,
+      "gold": 43991.0,
+      "trap": 45101.0,
+      "ratio": 1.0252324339069354,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G01"
+      ]
+    },
+    {
+      "id": "SD03",
+      "family": "soft_delete",
+      "expected": "SOFT_DELETE_IGNORED",
+      "classified": "SOFT_DELETE_IGNORED",
+      "differs_from_gold": true,
+      "gold": 40720.0,
+      "trap": 41746.0,
+      "ratio": 1.025196463654224,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G01"
+      ]
+    },
+    {
+      "id": "SD04",
+      "family": "soft_delete",
+      "expected": "SOFT_DELETE_IGNORED",
+      "classified": "SOFT_DELETE_IGNORED",
+      "differs_from_gold": true,
+      "gold": 4.0863,
+      "trap": 4.0864,
+      "ratio": 1.0000244720162497,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G01"
+      ]
+    },
+    {
+      "id": "SD05",
+      "family": "soft_delete",
+      "expected": "SOFT_DELETE_IGNORED",
+      "classified": "SOFT_DELETE_IGNORED",
+      "differs_from_gold": true,
+      "gold": 2196287.68,
+      "trap": 2251909.54,
+      "ratio": 1.0253253981737036,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G01",
+        "G09"
+      ]
+    },
+    {
+      "id": "SD06",
+      "family": "soft_delete",
+      "expected": "SOFT_DELETE_IGNORED",
+      "classified": "SOFT_DELETE_IGNORED",
+      "differs_from_gold": true,
+      "gold": null,
+      "trap": null,
+      "ratio": null,
+      "rows_gold": 10,
+      "rows_trap": 10,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G01"
+      ]
+    },
+    {
+      "id": "SD07",
+      "family": "soft_delete",
+      "expected": "SOFT_DELETE_IGNORED",
+      "classified": "SOFT_DELETE_IGNORED",
+      "differs_from_gold": true,
+      "gold": null,
+      "trap": null,
+      "ratio": null,
+      "rows_gold": 5,
+      "rows_trap": 5,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G01",
+        "G09"
+      ]
+    },
+    {
+      "id": "SD08",
+      "family": "soft_delete",
+      "expected": "SOFT_DELETE_IGNORED",
+      "classified": "SOFT_DELETE_IGNORED",
+      "differs_from_gold": true,
+      "gold": 753.0,
+      "trap": 775.0,
+      "ratio": 1.0292164674634794,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G01"
+      ]
+    },
+    {
+      "id": "SD09",
+      "family": "soft_delete",
+      "expected": "SOFT_DELETE_IGNORED",
+      "classified": "SOFT_DELETE_IGNORED",
+      "differs_from_gold": true,
+      "gold": null,
+      "trap": null,
+      "ratio": null,
+      "rows_gold": 5,
+      "rows_trap": 5,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G02"
+      ]
+    },
+    {
+      "id": "SD10",
+      "family": "soft_delete",
+      "expected": "SOFT_DELETE_IGNORED",
+      "classified": "SOFT_DELETE_IGNORED",
+      "differs_from_gold": true,
+      "gold": 3085.0,
+      "trap": 3095.0,
+      "ratio": 1.0032414910858996,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G01"
+      ]
+    },
+    {
+      "id": "ST01",
+      "family": "status_case",
+      "expected": "STATUS_CASE_MISMATCH",
+      "classified": "STATUS_CASE_MISMATCH",
+      "differs_from_gold": true,
+      "gold": 94093.0,
+      "trap": 75123.0,
+      "ratio": 0.7983909536309821,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G03"
+      ]
+    },
+    {
+      "id": "ST02",
+      "family": "status_case",
+      "expected": "STATUS_CASE_MISMATCH",
+      "classified": "STATUS_CASE_MISMATCH",
+      "differs_from_gold": true,
+      "gold": 612.0,
+      "trap": 507.0,
+      "ratio": 0.8284313725490197,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G03"
+      ]
+    },
+    {
+      "id": "ST03",
+      "family": "status_case",
+      "expected": "STATUS_CASE_MISMATCH",
+      "classified": "STATUS_CASE_MISMATCH",
+      "differs_from_gold": true,
+      "gold": null,
+      "trap": null,
+      "ratio": null,
+      "rows_gold": 8,
+      "rows_trap": 32,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G03"
+      ]
+    },
+    {
+      "id": "ST04",
+      "family": "status_case",
+      "expected": "STATUS_CASE_MISMATCH",
+      "classified": "STATUS_CASE_MISMATCH",
+      "differs_from_gold": true,
+      "gold": 97.01,
+      "trap": 77.46,
+      "ratio": 0.798474384084115,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G03"
+      ]
+    },
+    {
+      "id": "ST05",
+      "family": "status_case",
+      "expected": "STATUS_CASE_MISMATCH",
+      "classified": "STATUS_CASE_MISMATCH",
+      "differs_from_gold": true,
+      "gold": 1086.0,
+      "trap": 851.0,
+      "ratio": 0.783609576427256,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G03"
+      ]
+    },
+    {
+      "id": "ST06",
+      "family": "status_case",
+      "expected": "STATUS_CASE_MISMATCH",
+      "classified": "STATUS_CASE_MISMATCH",
+      "differs_from_gold": true,
+      "gold": 1202.0,
+      "trap": 975.0,
+      "ratio": 0.8111480865224625,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G03"
+      ]
+    },
+    {
+      "id": "ST07",
+      "family": "status_case",
+      "expected": "STATUS_CASE_MISMATCH",
+      "classified": "STATUS_CASE_MISMATCH",
+      "differs_from_gold": true,
+      "gold": 12.56,
+      "trap": 12.55,
+      "ratio": 0.9992038216560509,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G03"
+      ]
+    },
+    {
+      "id": "ST08",
+      "family": "status_case",
+      "expected": "STATUS_CASE_MISMATCH",
+      "classified": "STATUS_CASE_MISMATCH",
+      "differs_from_gold": true,
+      "gold": null,
+      "trap": null,
+      "ratio": null,
+      "rows_gold": 5,
+      "rows_trap": 5,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G03"
+      ]
+    },
+    {
+      "id": "FO01",
+      "family": "fanout",
+      "expected": "FANOUT_INFLATION",
+      "classified": "FANOUT_INFLATION",
+      "differs_from_gold": true,
+      "gold": null,
+      "trap": null,
+      "ratio": null,
+      "rows_gold": 10,
+      "rows_trap": 10,
+      "guardrail_decision": "ALLOW",
+      "guardrail_rules": []
+    },
+    {
+      "id": "FO02",
+      "family": "fanout",
+      "expected": "FANOUT_INFLATION",
+      "classified": "FANOUT_INFLATION",
+      "differs_from_gold": true,
+      "gold": null,
+      "trap": null,
+      "ratio": null,
+      "rows_gold": 5,
+      "rows_trap": 5,
+      "guardrail_decision": "ALLOW",
+      "guardrail_rules": []
+    },
+    {
+      "id": "FO03",
+      "family": "fanout",
+      "expected": "FANOUT_INFLATION",
+      "classified": "FANOUT_INFLATION",
+      "differs_from_gold": true,
+      "gold": null,
+      "trap": null,
+      "ratio": null,
+      "rows_gold": 12,
+      "rows_trap": 12,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G04",
+        "G04",
+        "G09"
+      ]
+    },
+    {
+      "id": "FO04",
+      "family": "fanout",
+      "expected": "FANOUT_INFLATION",
+      "classified": "FANOUT_INFLATION",
+      "differs_from_gold": true,
+      "gold": null,
+      "trap": null,
+      "ratio": null,
+      "rows_gold": 5,
+      "rows_trap": 5,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G04",
+        "G04"
+      ]
+    },
+    {
+      "id": "FO05",
+      "family": "fanout",
+      "expected": "FANOUT_INFLATION",
+      "classified": "FANOUT_INFLATION",
+      "differs_from_gold": true,
+      "gold": 77769.55,
+      "trap": 122424.78,
+      "ratio": 1.5741994135236734,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G04",
+        "G09"
+      ]
+    },
+    {
+      "id": "FO06",
+      "family": "fanout",
+      "expected": "FANOUT_INFLATION",
+      "classified": "FANOUT_INFLATION",
+      "differs_from_gold": true,
+      "gold": 7447682.65,
+      "trap": 7473270.92,
+      "ratio": 1.0034357358124006,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G04",
+        "G09"
+      ]
+    },
+    {
+      "id": "FO07",
+      "family": "fanout",
+      "expected": "FANOUT_INFLATION",
+      "classified": "FANOUT_INFLATION",
+      "differs_from_gold": true,
+      "gold": 2916.0,
+      "trap": 3011.0,
+      "ratio": 1.0325788751714677,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "ALLOW",
+      "guardrail_rules": []
+    },
+    {
+      "id": "FO08",
+      "family": "fanout",
+      "expected": "FANOUT_INFLATION",
+      "classified": "FANOUT_INFLATION",
+      "differs_from_gold": true,
+      "gold": null,
+      "trap": null,
+      "ratio": null,
+      "rows_gold": 5,
+      "rows_trap": 5,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G04",
+        "G09"
+      ]
+    },
+    {
+      "id": "FO09",
+      "family": "fanout",
+      "expected": "FANOUT_INFLATION",
+      "classified": "FANOUT_INFLATION",
+      "differs_from_gold": true,
+      "gold": 1412363.63,
+      "trap": 1615203.6,
+      "ratio": 1.1436173841434873,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G04",
+        "G09"
+      ]
+    },
+    {
+      "id": "FO10",
+      "family": "fanout",
+      "expected": "FANOUT_INFLATION",
+      "classified": "FANOUT_INFLATION",
+      "differs_from_gold": true,
+      "gold": 249.67,
+      "trap": 290.71,
+      "ratio": 1.1643769776104458,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G04",
+        "G09"
+      ]
+    },
+    {
+      "id": "FO11",
+      "family": "fanout",
+      "expected": "FANOUT_INFLATION",
+      "classified": "FANOUT_INFLATION",
+      "differs_from_gold": true,
+      "gold": null,
+      "trap": null,
+      "ratio": null,
+      "rows_gold": 8,
+      "rows_trap": 8,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G04"
+      ]
+    },
+    {
+      "id": "FO12",
+      "family": "fanout",
+      "expected": "FANOUT_INFLATION",
+      "classified": "FANOUT_INFLATION",
+      "differs_from_gold": true,
+      "gold": null,
+      "trap": null,
+      "ratio": null,
+      "rows_gold": 5,
+      "rows_trap": 5,
+      "guardrail_decision": "ALLOW",
+      "guardrail_rules": []
+    },
+    {
+      "id": "FO13",
+      "family": "fanout",
+      "expected": "FANOUT_INFLATION",
+      "classified": "FANOUT_INFLATION",
+      "differs_from_gold": true,
+      "gold": null,
+      "trap": null,
+      "ratio": null,
+      "rows_gold": 4,
+      "rows_trap": 4,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G04",
+        "G09"
+      ]
+    },
+    {
+      "id": "FO14",
+      "family": "fanout",
+      "expected": "FANOUT_INFLATION",
+      "classified": "FANOUT_INFLATION",
+      "differs_from_gold": true,
+      "gold": 4.0506,
+      "trap": 4.0343,
+      "ratio": 0.9959759048042265,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G04"
+      ]
+    },
+    {
+      "id": "DB01",
+      "family": "date_boundary",
+      "expected": "DATE_BOUNDARY_ERROR",
+      "classified": "DATE_BOUNDARY_ERROR",
+      "differs_from_gold": true,
+      "gold": 20706.0,
+      "trap": 20541.0,
+      "ratio": 0.9920312952767314,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G06"
+      ]
+    },
+    {
+      "id": "DB02",
+      "family": "date_boundary",
+      "expected": "DATE_BOUNDARY_ERROR",
+      "classified": "DATE_BOUNDARY_ERROR",
+      "differs_from_gold": true,
+      "gold": 1148.0,
+      "trap": 0.0,
+      "ratio": 0.0,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G06"
+      ]
+    },
+    {
+      "id": "DB03",
+      "family": "date_boundary",
+      "expected": "DATE_BOUNDARY_ERROR",
+      "classified": "DATE_BOUNDARY_ERROR",
+      "differs_from_gold": true,
+      "gold": 5372851.61,
+      "trap": 5357739.67,
+      "ratio": 0.9971873520623808,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G06",
+        "G09"
+      ]
+    },
+    {
+      "id": "DB04",
+      "family": "date_boundary",
+      "expected": "DATE_BOUNDARY_ERROR",
+      "classified": "DATE_BOUNDARY_ERROR",
+      "differs_from_gold": true,
+      "gold": 5535.0,
+      "trap": 5461.0,
+      "ratio": 0.9866305329719964,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G06"
+      ]
+    },
+    {
+      "id": "DB05",
+      "family": "date_boundary",
+      "expected": "DATE_BOUNDARY_ERROR",
+      "classified": "DATE_BOUNDARY_ERROR",
+      "differs_from_gold": true,
+      "gold": null,
+      "trap": null,
+      "ratio": null,
+      "rows_gold": 7,
+      "rows_trap": 6,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G06"
+      ]
+    },
+    {
+      "id": "DB06",
+      "family": "date_boundary",
+      "expected": "DATE_BOUNDARY_ERROR",
+      "classified": "DATE_BOUNDARY_ERROR",
+      "differs_from_gold": true,
+      "gold": 5692.0,
+      "trap": 5410.0,
+      "ratio": 0.9504567814476458,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G06"
+      ]
+    },
+    {
+      "id": "DB07",
+      "family": "date_boundary",
+      "expected": "DATE_BOUNDARY_ERROR",
+      "classified": "DATE_BOUNDARY_ERROR",
+      "differs_from_gold": true,
+      "gold": 261.0,
+      "trap": 260.0,
+      "ratio": 0.9961685823754789,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G06"
+      ]
+    },
+    {
+      "id": "DB08",
+      "family": "date_boundary",
+      "expected": "DATE_BOUNDARY_ERROR",
+      "classified": "DATE_BOUNDARY_ERROR",
+      "differs_from_gold": true,
+      "gold": 6503.0,
+      "trap": 6104.0,
+      "ratio": 0.9386437029063509,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G06"
+      ]
+    },
+    {
+      "id": "TZ01",
+      "family": "timezone",
+      "expected": "TIMEZONE_MISMATCH",
+      "classified": "TIMEZONE_MISMATCH",
+      "differs_from_gold": true,
+      "gold": 202.0,
+      "trap": 217.0,
+      "ratio": 1.0742574257425743,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G07"
+      ]
+    },
+    {
+      "id": "TZ02",
+      "family": "timezone",
+      "expected": "TIMEZONE_MISMATCH",
+      "classified": "TIMEZONE_MISMATCH",
+      "differs_from_gold": true,
+      "gold": 23.0,
+      "trap": 2.0,
+      "ratio": 0.08695652173913043,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G07"
+      ]
+    },
+    {
+      "id": "TZ03",
+      "family": "timezone",
+      "expected": "TIMEZONE_MISMATCH",
+      "classified": "TIMEZONE_MISMATCH",
+      "differs_from_gold": true,
+      "gold": 69.82,
+      "trap": 72.55,
+      "ratio": 1.03910054425666,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G07"
+      ]
+    },
+    {
+      "id": "TZ04",
+      "family": "timezone",
+      "expected": "TIMEZONE_MISMATCH",
+      "classified": "TIMEZONE_MISMATCH",
+      "differs_from_gold": true,
+      "gold": 2596.0,
+      "trap": 1984.0,
+      "ratio": 0.7642526964560863,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G07"
+      ]
+    },
+    {
+      "id": "TZ05",
+      "family": "timezone",
+      "expected": "TIMEZONE_MISMATCH",
+      "classified": "TIMEZONE_MISMATCH",
+      "differs_from_gold": true,
+      "gold": null,
+      "trap": null,
+      "ratio": null,
+      "rows_gold": 10,
+      "rows_trap": 10,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G07"
+      ]
+    },
+    {
+      "id": "TZ06",
+      "family": "timezone",
+      "expected": "TIMEZONE_MISMATCH",
+      "classified": "TIMEZONE_MISMATCH",
+      "differs_from_gold": true,
+      "gold": 43022.0,
+      "trap": 33545.0,
+      "ratio": 0.7797173539119521,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G07"
+      ]
+    },
+    {
+      "id": "DF01",
+      "family": "definition",
+      "expected": "DEFINITION_DRIFT",
+      "classified": "DEFINITION_DRIFT",
+      "differs_from_gold": true,
+      "gold": 5817340.96,
+      "trap": 6753471.36,
+      "ratio": 1.1609206691574083,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "REVIEW",
+      "guardrail_rules": [
+        "G09"
+      ]
+    },
+    {
+      "id": "DF02",
+      "family": "definition",
+      "expected": "DEFINITION_DRIFT",
+      "classified": "DEFINITION_DRIFT",
+      "differs_from_gold": true,
+      "gold": null,
+      "trap": null,
+      "ratio": null,
+      "rows_gold": 8,
+      "rows_trap": 8,
+      "guardrail_decision": "REVIEW",
+      "guardrail_rules": [
+        "G09"
+      ]
+    },
+    {
+      "id": "DF03",
+      "family": "definition",
+      "expected": "DEFINITION_DRIFT",
+      "classified": "DEFINITION_DRIFT",
+      "differs_from_gold": true,
+      "gold": null,
+      "trap": null,
+      "ratio": null,
+      "rows_gold": 5,
+      "rows_trap": 5,
+      "guardrail_decision": "REVIEW",
+      "guardrail_rules": [
+        "G09"
+      ]
+    },
+    {
+      "id": "DF04",
+      "family": "definition",
+      "expected": "DEFINITION_DRIFT",
+      "classified": "DEFINITION_DRIFT",
+      "differs_from_gold": true,
+      "gold": 137.32,
+      "trap": 159.42,
+      "ratio": 1.1609379551412757,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "REVIEW",
+      "guardrail_rules": [
+        "G09"
+      ]
+    },
+    {
+      "id": "DF05",
+      "family": "definition",
+      "expected": "DEFINITION_DRIFT",
+      "classified": "DEFINITION_DRIFT",
+      "differs_from_gold": true,
+      "gold": 17537.0,
+      "trap": 0.0,
+      "ratio": 0.0,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "BLOCK",
+      "guardrail_rules": [
+        "G05"
+      ]
+    },
+    {
+      "id": "DF06",
+      "family": "definition",
+      "expected": "DEFINITION_DRIFT",
+      "classified": "DEFINITION_DRIFT",
+      "differs_from_gold": true,
+      "gold": null,
+      "trap": null,
+      "ratio": null,
+      "rows_gold": 5,
+      "rows_trap": 5,
+      "guardrail_decision": "ALLOW",
+      "guardrail_rules": []
+    },
+    {
+      "id": "DF07",
+      "family": "definition",
+      "expected": "DEFINITION_DRIFT",
+      "classified": "DEFINITION_DRIFT",
+      "differs_from_gold": true,
+      "gold": 17537.0,
+      "trap": 17352.0,
+      "ratio": 0.9894508752922393,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "ALLOW",
+      "guardrail_rules": []
+    },
+    {
+      "id": "DF08",
+      "family": "definition",
+      "expected": "DEFINITION_DRIFT",
+      "classified": "DEFINITION_DRIFT",
+      "differs_from_gold": true,
+      "gold": 6.78,
+      "trap": 8.12,
+      "ratio": 1.1976401179941,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "ALLOW",
+      "guardrail_rules": []
+    },
+    {
+      "id": "DF09",
+      "family": "definition",
+      "expected": "DEFINITION_DRIFT",
+      "classified": "DEFINITION_DRIFT",
+      "differs_from_gold": true,
+      "gold": 7158560.04,
+      "trap": 7037336.05,
+      "ratio": 0.9830658694873501,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "REVIEW",
+      "guardrail_rules": [
+        "G09"
+      ]
+    },
+    {
+      "id": "DF10",
+      "family": "definition",
+      "expected": "DEFINITION_DRIFT",
+      "classified": "DEFINITION_DRIFT",
+      "differs_from_gold": true,
+      "gold": 16.63,
+      "trap": 14.26,
+      "ratio": 0.857486470234516,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "REVIEW",
+      "guardrail_rules": [
+        "G09"
+      ]
+    },
+    {
+      "id": "DF11",
+      "family": "definition",
+      "expected": "DEFINITION_DRIFT",
+      "classified": "DEFINITION_DRIFT",
+      "differs_from_gold": true,
+      "gold": null,
+      "trap": null,
+      "ratio": null,
+      "rows_gold": 8,
+      "rows_trap": 8,
+      "guardrail_decision": "REVIEW",
+      "guardrail_rules": [
+        "G09"
+      ]
+    },
+    {
+      "id": "DF12",
+      "family": "definition",
+      "expected": "DEFINITION_DRIFT",
+      "classified": "DEFINITION_DRIFT",
+      "differs_from_gold": true,
+      "gold": 6916377.76,
+      "trap": 6753471.36,
+      "ratio": 0.9764462836396606,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "REVIEW",
+      "guardrail_rules": [
+        "G09"
+      ]
+    },
+    {
+      "id": "EN01",
+      "family": "entity_grain",
+      "expected": "ENTITY_GRAIN_ERROR",
+      "classified": "ENTITY_GRAIN_ERROR",
+      "differs_from_gold": true,
+      "gold": 92414.0,
+      "trap": 95576.0,
+      "ratio": 1.0342155950397125,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "REVIEW",
+      "guardrail_rules": [
+        "G08"
+      ]
+    },
+    {
+      "id": "EN02",
+      "family": "entity_grain",
+      "expected": "ENTITY_GRAIN_ERROR",
+      "classified": "ENTITY_GRAIN_ERROR",
+      "differs_from_gold": true,
+      "gold": null,
+      "trap": null,
+      "ratio": null,
+      "rows_gold": 5,
+      "rows_trap": 5,
+      "guardrail_decision": "REVIEW",
+      "guardrail_rules": [
+        "G08",
+        "G09"
+      ]
+    },
+    {
+      "id": "EN03",
+      "family": "entity_grain",
+      "expected": "ENTITY_GRAIN_ERROR",
+      "classified": "ENTITY_GRAIN_ERROR",
+      "differs_from_gold": true,
+      "gold": 2840.0,
+      "trap": 0.0,
+      "ratio": 0.0,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "REVIEW",
+      "guardrail_rules": [
+        "G08"
+      ]
+    },
+    {
+      "id": "EN04",
+      "family": "entity_grain",
+      "expected": "ENTITY_GRAIN_ERROR",
+      "classified": "ENTITY_GRAIN_ERROR",
+      "differs_from_gold": true,
+      "gold": 3.07,
+      "trap": 0.0,
+      "ratio": 0.0,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "REVIEW",
+      "guardrail_rules": [
+        "G08"
+      ]
+    },
+    {
+      "id": "EN05",
+      "family": "entity_grain",
+      "expected": "ENTITY_GRAIN_ERROR",
+      "classified": "ENTITY_GRAIN_ERROR",
+      "differs_from_gold": true,
+      "gold": 1.03,
+      "trap": 1.0,
+      "ratio": 0.970873786407767,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "REVIEW",
+      "guardrail_rules": [
+        "G08"
+      ]
+    },
+    {
+      "id": "EN06",
+      "family": "entity_grain",
+      "expected": "ENTITY_GRAIN_ERROR",
+      "classified": "ENTITY_GRAIN_ERROR",
+      "differs_from_gold": true,
+      "gold": 50706.0,
+      "trap": 51902.0,
+      "ratio": 1.0235869522344496,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "REVIEW",
+      "guardrail_rules": [
+        "G08"
+      ]
+    },
+    {
+      "id": "EN07",
+      "family": "entity_grain",
+      "expected": "ENTITY_GRAIN_ERROR",
+      "classified": "ENTITY_GRAIN_ERROR",
+      "differs_from_gold": true,
+      "gold": null,
+      "trap": null,
+      "ratio": null,
+      "rows_gold": 3,
+      "rows_trap": 1,
+      "guardrail_decision": "REVIEW",
+      "guardrail_rules": [
+        "G08"
+      ]
+    },
+    {
+      "id": "EN08",
+      "family": "entity_grain",
+      "expected": "ENTITY_GRAIN_ERROR",
+      "classified": "ENTITY_GRAIN_ERROR",
+      "differs_from_gold": true,
+      "gold": 141.42,
+      "trap": 136.93,
+      "ratio": 0.9682506010465282,
+      "rows_gold": 1,
+      "rows_trap": 1,
+      "guardrail_decision": "REVIEW",
+      "guardrail_rules": [
+        "G08",
+        "G09"
+      ]
+    }
+  ]
+}

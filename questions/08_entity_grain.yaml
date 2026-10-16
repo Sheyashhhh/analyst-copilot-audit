@@ -1,0 +1,181 @@
+# Trap: dim_customer.customer_id is a per-ORDER identifier in the Olist export.
+# The real person is customer_unique_id. Counting or grouping by customer_id makes every customer
+# look like a one-time buyer.
+- id: EN01
+  family: entity_grain
+  difficulty: medium
+  grain: customer
+  question: "How many customers have placed an order?"
+  gold_sql: |
+    SELECT count(DISTINCT c.customer_unique_id) AS customers
+    FROM fact_orders o
+    JOIN dim_customer c ON c.customer_key = o.customer_key
+    WHERE NOT o.is_deleted AND NOT c.is_deleted
+  naive_sql: |
+    SELECT count(DISTINCT c.customer_id) AS customers
+    FROM fact_orders o
+    JOIN dim_customer c ON c.customer_key = o.customer_key
+    WHERE NOT o.is_deleted AND NOT c.is_deleted
+  expected_failure: ENTITY_GRAIN_ERROR
+
+- id: EN02
+  family: entity_grain
+  difficulty: hard
+  metric: net_revenue
+  grain: customer
+  ordered: true
+  question: "Who are our top 5 customers by net revenue? Return the customer identifier and revenue, highest first, breaking ties by identifier."
+  gold_sql: |
+    SELECT c.customer_unique_id AS customer, sum(i.price) AS revenue
+    FROM fact_orders o
+    JOIN dim_customer c ON c.customer_key = o.customer_key
+    JOIN fact_order_items i ON i.order_id = o.order_id
+    WHERE NOT o.is_deleted AND NOT c.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+    GROUP BY 1
+    ORDER BY revenue DESC, customer
+    LIMIT 5
+  naive_sql: |
+    SELECT c.customer_id AS customer, sum(i.price) AS revenue
+    FROM fact_orders o
+    JOIN dim_customer c ON c.customer_key = o.customer_key
+    JOIN fact_order_items i ON i.order_id = o.order_id
+    WHERE NOT o.is_deleted AND NOT c.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+    GROUP BY 1
+    ORDER BY revenue DESC, customer
+    LIMIT 5
+  expected_failure: ENTITY_GRAIN_ERROR
+
+- id: EN03
+  family: entity_grain
+  difficulty: medium
+  grain: customer
+  question: "How many customers have placed more than one order?"
+  gold_sql: |
+    SELECT count(*) AS repeat_customers
+    FROM (
+      SELECT c.customer_unique_id
+      FROM fact_orders o
+      JOIN dim_customer c ON c.customer_key = o.customer_key
+      WHERE NOT o.is_deleted AND NOT c.is_deleted
+      GROUP BY 1
+      HAVING count(*) > 1
+    )
+  naive_sql: |
+    SELECT count(*) AS repeat_customers
+    FROM (
+      SELECT c.customer_id
+      FROM fact_orders o
+      JOIN dim_customer c ON c.customer_key = o.customer_key
+      WHERE NOT o.is_deleted AND NOT c.is_deleted
+      GROUP BY 1
+      HAVING count(*) > 1
+    )
+  expected_failure: ENTITY_GRAIN_ERROR
+
+- id: EN04
+  family: entity_grain
+  difficulty: hard
+  grain: customer
+  question: "What percentage of customers are repeat customers (more than one order)? Round to 2 decimals."
+  gold_sql: |
+    SELECT round(100.0 * count(*) FILTER (WHERE n > 1) / count(*), 2) AS repeat_pct
+    FROM (
+      SELECT c.customer_unique_id, count(*) AS n
+      FROM fact_orders o
+      JOIN dim_customer c ON c.customer_key = o.customer_key
+      WHERE NOT o.is_deleted AND NOT c.is_deleted
+      GROUP BY 1
+    )
+  naive_sql: |
+    SELECT round(100.0 * count(*) FILTER (WHERE n > 1) / count(*), 2) AS repeat_pct
+    FROM (
+      SELECT c.customer_id, count(*) AS n
+      FROM fact_orders o
+      JOIN dim_customer c ON c.customer_key = o.customer_key
+      WHERE NOT o.is_deleted AND NOT c.is_deleted
+      GROUP BY 1
+    )
+  expected_failure: ENTITY_GRAIN_ERROR
+
+- id: EN05
+  family: entity_grain
+  difficulty: medium
+  grain: customer
+  question: "On average, how many orders does each customer place? Round to 2 decimals."
+  gold_sql: |
+    SELECT round(count(*) * 1.0 / count(DISTINCT c.customer_unique_id), 2) AS orders_per_customer
+    FROM fact_orders o
+    JOIN dim_customer c ON c.customer_key = o.customer_key
+    WHERE NOT o.is_deleted AND NOT c.is_deleted
+  naive_sql: |
+    SELECT round(count(*) * 1.0 / count(DISTINCT c.customer_id), 2) AS orders_per_customer
+    FROM fact_orders o
+    JOIN dim_customer c ON c.customer_key = o.customer_key
+    WHERE NOT o.is_deleted AND NOT c.is_deleted
+  expected_failure: ENTITY_GRAIN_ERROR
+
+- id: EN06
+  family: entity_grain
+  difficulty: medium
+  grain: customer
+  question: "How many distinct customers placed an order in 2018?"
+  gold_sql: |
+    SELECT count(DISTINCT c.customer_unique_id) AS customers
+    FROM fact_orders o
+    JOIN dim_customer c ON c.customer_key = o.customer_key
+    WHERE NOT o.is_deleted AND NOT c.is_deleted
+      AND o.order_purchase_ts >= TIMESTAMP '2018-01-01' AND o.order_purchase_ts < TIMESTAMP '2019-01-01'
+  naive_sql: |
+    SELECT count(DISTINCT c.customer_id) AS customers
+    FROM fact_orders o
+    JOIN dim_customer c ON c.customer_key = o.customer_key
+    WHERE NOT o.is_deleted AND NOT c.is_deleted
+      AND o.order_purchase_ts >= TIMESTAMP '2018-01-01' AND o.order_purchase_ts < TIMESTAMP '2019-01-01'
+  expected_failure: ENTITY_GRAIN_ERROR
+
+- id: EN07
+  family: entity_grain
+  difficulty: hard
+  grain: customer
+  question: "How many customers placed exactly one order, exactly two orders, and three or more orders? Return a bucket label ('1', '2', '3+') and the customer count."
+  gold_sql: |
+    SELECT CASE WHEN n >= 3 THEN '3+' ELSE CAST(n AS VARCHAR) END AS bucket, count(*) AS customers
+    FROM (
+      SELECT c.customer_unique_id, count(*) AS n
+      FROM fact_orders o
+      JOIN dim_customer c ON c.customer_key = o.customer_key
+      WHERE NOT o.is_deleted AND NOT c.is_deleted
+      GROUP BY 1
+    )
+    GROUP BY 1
+  naive_sql: |
+    SELECT CASE WHEN n >= 3 THEN '3+' ELSE CAST(n AS VARCHAR) END AS bucket, count(*) AS customers
+    FROM (
+      SELECT c.customer_id, count(*) AS n
+      FROM fact_orders o
+      JOIN dim_customer c ON c.customer_key = o.customer_key
+      WHERE NOT o.is_deleted AND NOT c.is_deleted
+      GROUP BY 1
+    )
+    GROUP BY 1
+  expected_failure: ENTITY_GRAIN_ERROR
+
+- id: EN08
+  family: entity_grain
+  difficulty: hard
+  metric: net_revenue
+  grain: customer
+  question: "What is the average net revenue per customer? Round to 2 decimals."
+  gold_sql: |
+    SELECT round(sum(i.price) / count(DISTINCT c.customer_unique_id), 2) AS revenue_per_customer
+    FROM fact_orders o
+    JOIN dim_customer c ON c.customer_key = o.customer_key
+    JOIN fact_order_items i ON i.order_id = o.order_id
+    WHERE NOT o.is_deleted AND NOT c.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+  naive_sql: |
+    SELECT round(sum(i.price) / count(DISTINCT c.customer_id), 2) AS revenue_per_customer
+    FROM fact_orders o
+    JOIN dim_customer c ON c.customer_key = o.customer_key
+    JOIN fact_order_items i ON i.order_id = o.order_id
+    WHERE NOT o.is_deleted AND NOT c.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+  expected_failure: ENTITY_GRAIN_ERROR

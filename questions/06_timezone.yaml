@@ -1,0 +1,123 @@
+# Trap: fact_orders timestamps are naive America/Sao_Paulo local time, while
+# fact_reviews.review_answered_at is naive UTC. Mixing them, or bucketing the UTC value into
+# local days / hours / months, is wrong by 2-3 hours depending on Brazil's DST that year.
+- id: TZ01
+  family: timezone
+  difficulty: hard
+  question: "How many reviews were answered on 5 March 2018, in São Paulo local time?"
+  gold_sql: |
+    SELECT count(*) AS reviews
+    FROM fact_reviews r
+    JOIN fact_orders o ON o.order_id = r.order_id
+    WHERE NOT o.is_deleted
+      AND (r.review_answered_at AT TIME ZONE 'UTC') AT TIME ZONE 'America/Sao_Paulo' >= TIMESTAMP '2018-03-05'
+      AND (r.review_answered_at AT TIME ZONE 'UTC') AT TIME ZONE 'America/Sao_Paulo' <  TIMESTAMP '2018-03-06'
+  naive_sql: |
+    SELECT count(*) AS reviews
+    FROM fact_reviews r
+    JOIN fact_orders o ON o.order_id = r.order_id
+    WHERE NOT o.is_deleted
+      AND r.review_answered_at >= TIMESTAMP '2018-03-05' AND r.review_answered_at < TIMESTAMP '2018-03-06'
+  expected_failure: TIMEZONE_MISMATCH
+
+- id: TZ02
+  family: timezone
+  difficulty: hard
+  question: "At which hour of the day, in São Paulo local time, are the most reviews answered? Return the hour (0-23)."
+  gold_sql: |
+    SELECT hour((r.review_answered_at AT TIME ZONE 'UTC') AT TIME ZONE 'America/Sao_Paulo') AS hour
+    FROM fact_reviews r
+    JOIN fact_orders o ON o.order_id = r.order_id
+    WHERE NOT o.is_deleted
+    GROUP BY 1
+    ORDER BY count(*) DESC, 1
+    LIMIT 1
+  naive_sql: |
+    SELECT hour(r.review_answered_at) AS hour
+    FROM fact_reviews r
+    JOIN fact_orders o ON o.order_id = r.order_id
+    WHERE NOT o.is_deleted
+    GROUP BY 1
+    ORDER BY count(*) DESC, 1
+    LIMIT 1
+  expected_failure: TIMEZONE_MISMATCH
+
+- id: TZ03
+  family: timezone
+  difficulty: hard
+  question: "On average, how many hours after delivery to the customer is a review answered? Use delivered orders and round to 2 decimals."
+  gold_sql: |
+    SELECT round(avg(date_diff('second', o.order_delivered_customer_ts,
+                               (r.review_answered_at AT TIME ZONE 'UTC') AT TIME ZONE 'America/Sao_Paulo') / 3600.0), 2) AS avg_hours
+    FROM fact_reviews r
+    JOIN fact_orders o ON o.order_id = r.order_id
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+      AND o.order_delivered_customer_ts IS NOT NULL
+  naive_sql: |
+    SELECT round(avg(date_diff('second', o.order_delivered_customer_ts, r.review_answered_at) / 3600.0), 2) AS avg_hours
+    FROM fact_reviews r
+    JOIN fact_orders o ON o.order_id = r.order_id
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+      AND o.order_delivered_customer_ts IS NOT NULL
+  expected_failure: TIMEZONE_MISMATCH
+
+- id: TZ04
+  family: timezone
+  difficulty: hard
+  question: "How many reviews were answered within 24 hours after the order was delivered to the customer?"
+  gold_sql: |
+    SELECT count(*) AS reviews
+    FROM fact_reviews r
+    JOIN fact_orders o ON o.order_id = r.order_id
+    WHERE NOT o.is_deleted
+      AND (r.review_answered_at AT TIME ZONE 'UTC') AT TIME ZONE 'America/Sao_Paulo' >= o.order_delivered_customer_ts
+      AND (r.review_answered_at AT TIME ZONE 'UTC') AT TIME ZONE 'America/Sao_Paulo' <= o.order_delivered_customer_ts + INTERVAL 24 HOUR
+  naive_sql: |
+    SELECT count(*) AS reviews
+    FROM fact_reviews r
+    JOIN fact_orders o ON o.order_id = r.order_id
+    WHERE NOT o.is_deleted
+      AND r.review_answered_at >= o.order_delivered_customer_ts
+      AND r.review_answered_at <= o.order_delivered_customer_ts + INTERVAL 24 HOUR
+  expected_failure: TIMEZONE_MISMATCH
+
+- id: TZ05
+  family: timezone
+  difficulty: hard
+  ordered: true
+  question: "How many reviews were answered in each month of 2018, in São Paulo local time? Return the month number and review count, ordered by month."
+  gold_sql: |
+    SELECT month((r.review_answered_at AT TIME ZONE 'UTC') AT TIME ZONE 'America/Sao_Paulo') AS month, count(*) AS reviews
+    FROM fact_reviews r
+    JOIN fact_orders o ON o.order_id = r.order_id
+    WHERE NOT o.is_deleted
+      AND (r.review_answered_at AT TIME ZONE 'UTC') AT TIME ZONE 'America/Sao_Paulo' >= TIMESTAMP '2018-01-01'
+      AND (r.review_answered_at AT TIME ZONE 'UTC') AT TIME ZONE 'America/Sao_Paulo' <  TIMESTAMP '2019-01-01'
+    GROUP BY 1
+    ORDER BY 1
+  naive_sql: |
+    SELECT month(r.review_answered_at) AS month, count(*) AS reviews
+    FROM fact_reviews r
+    JOIN fact_orders o ON o.order_id = r.order_id
+    WHERE NOT o.is_deleted
+      AND r.review_answered_at >= TIMESTAMP '2018-01-01' AND r.review_answered_at < TIMESTAMP '2019-01-01'
+    GROUP BY 1
+    ORDER BY 1
+  expected_failure: TIMEZONE_MISMATCH
+
+- id: TZ06
+  family: timezone
+  difficulty: medium
+  question: "How many reviews were answered during business hours, between 09:00 and 17:59 São Paulo local time?"
+  gold_sql: |
+    SELECT count(*) AS reviews
+    FROM fact_reviews r
+    JOIN fact_orders o ON o.order_id = r.order_id
+    WHERE NOT o.is_deleted
+      AND hour((r.review_answered_at AT TIME ZONE 'UTC') AT TIME ZONE 'America/Sao_Paulo') BETWEEN 9 AND 17
+  naive_sql: |
+    SELECT count(*) AS reviews
+    FROM fact_reviews r
+    JOIN fact_orders o ON o.order_id = r.order_id
+    WHERE NOT o.is_deleted AND hour(r.review_answered_at) BETWEEN 9 AND 17
+  expected_failure: TIMEZONE_MISMATCH

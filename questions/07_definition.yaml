@@ -1,0 +1,254 @@
+# Trap: business-definition drift. Each metric has at least two plausible readings; the warehouse
+# owner's canonical definition lives in semantic/semantic_layer.yaml. Trap queries are internally
+# consistent SQL that implements a *different but reasonable* definition.
+- id: DF01
+  family: definition
+  difficulty: medium
+  metric: net_revenue
+  question: "What was our total revenue in 2017?"
+  gold_sql: |
+    SELECT sum(i.price) AS revenue
+    FROM fact_orders o
+    JOIN fact_order_items i ON i.order_id = o.order_id
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+      AND o.order_purchase_ts >= TIMESTAMP '2017-01-01' AND o.order_purchase_ts < TIMESTAMP '2018-01-01'
+  naive_sql: |
+    SELECT sum(p.payment_value) AS revenue
+    FROM fact_orders o
+    JOIN fact_payments p ON p.order_id = o.order_id
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+      AND o.order_purchase_ts >= TIMESTAMP '2017-01-01' AND o.order_purchase_ts < TIMESTAMP '2018-01-01'
+  expected_failure: DEFINITION_DRIFT
+
+- id: DF02
+  family: definition
+  difficulty: medium
+  metric: net_revenue
+  ordered: true
+  question: "Show monthly revenue from January to August 2018. Return the month number and revenue, ordered by month."
+  gold_sql: |
+    SELECT month(o.order_purchase_ts) AS month, sum(i.price) AS revenue
+    FROM fact_orders o
+    JOIN fact_order_items i ON i.order_id = o.order_id
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+      AND o.order_purchase_ts >= TIMESTAMP '2018-01-01' AND o.order_purchase_ts < TIMESTAMP '2018-09-01'
+    GROUP BY 1
+    ORDER BY 1
+  naive_sql: |
+    SELECT month(o.order_purchase_ts) AS month, sum(i.price + i.freight_value) AS revenue
+    FROM fact_orders o
+    JOIN fact_order_items i ON i.order_id = o.order_id
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+      AND o.order_purchase_ts >= TIMESTAMP '2018-01-01' AND o.order_purchase_ts < TIMESTAMP '2018-09-01'
+    GROUP BY 1
+    ORDER BY 1
+  expected_failure: DEFINITION_DRIFT
+
+- id: DF03
+  family: definition
+  difficulty: medium
+  metric: net_revenue
+  ordered: true
+  question: "What are the top 5 product categories by revenue? Return the category and revenue, highest first, breaking ties alphabetically."
+  gold_sql: |
+    SELECT p.category_name AS category, sum(i.price) AS revenue
+    FROM fact_orders o
+    JOIN fact_order_items i ON i.order_id = o.order_id
+    JOIN dim_product p ON p.product_key = i.product_key
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered' AND p.category_name IS NOT NULL
+    GROUP BY 1
+    ORDER BY revenue DESC, category
+    LIMIT 5
+  naive_sql: |
+    SELECT p.category_name AS category, sum(i.price) AS revenue
+    FROM fact_orders o
+    JOIN fact_order_items i ON i.order_id = o.order_id
+    JOIN dim_product p ON p.product_key = i.product_key
+    WHERE NOT o.is_deleted AND p.category_name IS NOT NULL
+    GROUP BY 1
+    ORDER BY revenue DESC, category
+    LIMIT 5
+  expected_failure: DEFINITION_DRIFT
+
+- id: DF04
+  family: definition
+  difficulty: medium
+  metric: aov
+  question: "What was the average order value in 2017? Round to 2 decimals."
+  gold_sql: |
+    SELECT round(sum(i.price) / count(DISTINCT o.order_id), 2) AS aov
+    FROM fact_orders o
+    JOIN fact_order_items i ON i.order_id = o.order_id
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+      AND o.order_purchase_ts >= TIMESTAMP '2017-01-01' AND o.order_purchase_ts < TIMESTAMP '2018-01-01'
+  naive_sql: |
+    SELECT round(avg(o.order_payment_total), 2) AS aov
+    FROM fact_orders o
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+      AND o.order_purchase_ts >= TIMESTAMP '2017-01-01' AND o.order_purchase_ts < TIMESTAMP '2018-01-01'
+  expected_failure: DEFINITION_DRIFT
+
+- id: DF05
+  family: definition
+  difficulty: hard
+  metric: active_customers
+  question: "How many active customers do we currently have?"
+  gold_sql: |
+    SELECT count(DISTINCT c.customer_unique_id) AS active_customers
+    FROM fact_orders o
+    JOIN dim_customer c ON c.customer_key = o.customer_key
+    WHERE NOT o.is_deleted AND NOT c.is_deleted
+      AND lower(trim(o.order_status)) NOT IN ('canceled', 'unavailable')
+      AND o.order_purchase_ts >= TIMESTAMP '2018-06-03' AND o.order_purchase_ts < TIMESTAMP '2018-09-01'
+  naive_sql: |
+    SELECT count(DISTINCT c.customer_unique_id) AS active_customers
+    FROM fact_orders o
+    JOIN dim_customer c ON c.customer_key = o.customer_key
+    WHERE NOT o.is_deleted AND NOT c.is_deleted
+      AND lower(trim(o.order_status)) NOT IN ('canceled', 'unavailable')
+      AND o.order_purchase_ts >= CURRENT_DATE - INTERVAL 90 DAY
+  expected_failure: DEFINITION_DRIFT
+
+- id: DF06
+  family: definition
+  difficulty: hard
+  metric: active_customers
+  ordered: true
+  question: "Which 5 states have the most active customers? Return the state and active customer count, highest first, breaking ties alphabetically."
+  gold_sql: |
+    SELECT c.state, count(DISTINCT c.customer_unique_id) AS active_customers
+    FROM fact_orders o
+    JOIN dim_customer c ON c.customer_key = o.customer_key
+    WHERE NOT o.is_deleted AND NOT c.is_deleted
+      AND lower(trim(o.order_status)) NOT IN ('canceled', 'unavailable')
+      AND o.order_purchase_ts >= TIMESTAMP '2018-06-03' AND o.order_purchase_ts < TIMESTAMP '2018-09-01'
+    GROUP BY c.state
+    ORDER BY active_customers DESC, c.state
+    LIMIT 5
+  naive_sql: |
+    SELECT c.state, count(DISTINCT c.customer_unique_id) AS active_customers
+    FROM fact_orders o
+    JOIN dim_customer c ON c.customer_key = o.customer_key
+    WHERE NOT o.is_deleted AND NOT c.is_deleted
+      AND lower(trim(o.order_status)) NOT IN ('canceled', 'unavailable')
+      AND o.order_purchase_ts >= TIMESTAMP '2018-08-02' AND o.order_purchase_ts < TIMESTAMP '2018-09-01'
+    GROUP BY c.state
+    ORDER BY active_customers DESC, c.state
+    LIMIT 5
+  expected_failure: DEFINITION_DRIFT
+
+- id: DF07
+  family: definition
+  difficulty: hard
+  metric: active_customers
+  question: "What is our active customer count?"
+  gold_sql: |
+    SELECT count(DISTINCT c.customer_unique_id) AS active_customers
+    FROM fact_orders o
+    JOIN dim_customer c ON c.customer_key = o.customer_key
+    WHERE NOT o.is_deleted AND NOT c.is_deleted
+      AND lower(trim(o.order_status)) NOT IN ('canceled', 'unavailable')
+      AND o.order_purchase_ts >= TIMESTAMP '2018-06-03' AND o.order_purchase_ts < TIMESTAMP '2018-09-01'
+  naive_sql: |
+    SELECT count(DISTINCT c.customer_unique_id) AS active_customers
+    FROM fact_orders o
+    JOIN dim_customer c ON c.customer_key = o.customer_key
+    WHERE NOT o.is_deleted AND NOT c.is_deleted
+      AND lower(trim(o.order_status)) = 'delivered'
+      AND o.order_purchase_ts >= TIMESTAMP '2018-06-03' AND o.order_purchase_ts < TIMESTAMP '2018-09-01'
+  expected_failure: DEFINITION_DRIFT
+
+- id: DF08
+  family: definition
+  difficulty: hard
+  metric: late_delivery_rate
+  question: "What percentage of delivered orders arrived late? Round to 2 decimals."
+  gold_sql: |
+    SELECT round(100.0 * count(*) FILTER (WHERE o.order_delivered_customer_ts::DATE > o.order_estimated_delivery_ts::DATE) / count(*), 2) AS late_pct
+    FROM fact_orders o
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+      AND o.order_delivered_customer_ts IS NOT NULL
+  naive_sql: |
+    SELECT round(100.0 * count(*) FILTER (WHERE o.order_delivered_customer_ts > o.order_estimated_delivery_ts) / count(*), 2) AS late_pct
+    FROM fact_orders o
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+      AND o.order_delivered_customer_ts IS NOT NULL
+  expected_failure: DEFINITION_DRIFT
+
+- id: DF09
+  family: definition
+  difficulty: medium
+  metric: gmv
+  question: "What was our gross merchandise value in 2018?"
+  gold_sql: |
+    SELECT sum(i.price) AS gmv
+    FROM fact_orders o
+    JOIN fact_order_items i ON i.order_id = o.order_id
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) NOT IN ('canceled', 'unavailable')
+      AND o.order_purchase_ts >= TIMESTAMP '2018-01-01' AND o.order_purchase_ts < TIMESTAMP '2019-01-01'
+  naive_sql: |
+    SELECT sum(i.price) AS gmv
+    FROM fact_orders o
+    JOIN fact_order_items i ON i.order_id = o.order_id
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+      AND o.order_purchase_ts >= TIMESTAMP '2018-01-01' AND o.order_purchase_ts < TIMESTAMP '2019-01-01'
+  expected_failure: DEFINITION_DRIFT
+
+- id: DF10
+  family: definition
+  difficulty: medium
+  metric: freight_ratio
+  question: "What share of our net revenue is freight? Express it as a percentage rounded to 2 decimals."
+  gold_sql: |
+    SELECT round(100.0 * sum(i.freight_value) / sum(i.price), 2) AS freight_pct
+    FROM fact_orders o
+    JOIN fact_order_items i ON i.order_id = o.order_id
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+  naive_sql: |
+    SELECT round(100.0 * sum(i.freight_value) / sum(i.price + i.freight_value), 2) AS freight_pct
+    FROM fact_orders o
+    JOIN fact_order_items i ON i.order_id = o.order_id
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+  expected_failure: DEFINITION_DRIFT
+
+- id: DF11
+  family: definition
+  difficulty: medium
+  metric: aov
+  ordered: true
+  question: "What was the average order value in each month from January to August 2018? Return the month number and the value rounded to 2 decimals, ordered by month."
+  gold_sql: |
+    SELECT month(o.order_purchase_ts) AS month, round(sum(i.price) / count(DISTINCT o.order_id), 2) AS aov
+    FROM fact_orders o
+    JOIN fact_order_items i ON i.order_id = o.order_id
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+      AND o.order_purchase_ts >= TIMESTAMP '2018-01-01' AND o.order_purchase_ts < TIMESTAMP '2018-09-01'
+    GROUP BY 1
+    ORDER BY 1
+  naive_sql: |
+    SELECT month(o.order_purchase_ts) AS month, round(avg(o.order_payment_total), 2) AS aov
+    FROM fact_orders o
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+      AND o.order_purchase_ts >= TIMESTAMP '2018-01-01' AND o.order_purchase_ts < TIMESTAMP '2018-09-01'
+    GROUP BY 1
+    ORDER BY 1
+  expected_failure: DEFINITION_DRIFT
+
+- id: DF12
+  family: definition
+  difficulty: medium
+  metric: cash_collected
+  question: "How much cash did we collect from customers in 2017?"
+  gold_sql: |
+    SELECT sum(p.payment_value) AS cash_collected
+    FROM fact_orders o
+    JOIN fact_payments p ON p.order_id = o.order_id
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) NOT IN ('canceled', 'unavailable')
+      AND o.order_purchase_ts >= TIMESTAMP '2017-01-01' AND o.order_purchase_ts < TIMESTAMP '2018-01-01'
+  naive_sql: |
+    SELECT sum(p.payment_value) AS cash_collected
+    FROM fact_orders o
+    JOIN fact_payments p ON p.order_id = o.order_id
+    WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+      AND o.order_purchase_ts >= TIMESTAMP '2017-01-01' AND o.order_purchase_ts < TIMESTAMP '2018-01-01'
+  expected_failure: DEFINITION_DRIFT

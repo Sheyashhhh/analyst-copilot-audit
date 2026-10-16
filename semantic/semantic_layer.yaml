@@ -1,0 +1,163 @@
+# Semantic layer for the Olist marketplace warehouse.
+# Three tiers, injected cumulatively so each tier's contribution can be measured:
+#   tables/columns  -> tier 1: column descriptions (what a column IS)
+#   rules + metrics -> tier 2: business definitions and conventions (what a column MEANS here)
+version: 1
+as_of_date: "2018-08-31"
+timezone: America/Sao_Paulo
+
+tables:
+  fact_orders:
+    grain: one row per order
+    description: Order header. One row per order_id. Parent of items, payments and reviews (all one-to-many).
+    columns:
+      order_id: Primary key. Business key shared by all fact tables.
+      customer_key: Foreign key to dim_customer. Identifies the per-order customer record, not the person.
+      order_status: "Order lifecycle status (delivered, shipped, canceled, unavailable, invoiced, processing, created, approved). Free-text as loaded; casing and surrounding whitespace are inconsistent."
+      order_purchase_ts: "When the customer placed the order. TIMESTAMP without time zone, in America/Sao_Paulo local time."
+      order_approved_ts: Payment approval time. Same convention as order_purchase_ts (local, naive).
+      order_delivered_carrier_ts: Handed to the carrier. Local, naive.
+      order_delivered_customer_ts: Delivered to the customer. Local, naive. NULL until delivered.
+      order_estimated_delivery_ts: Promised delivery date, stored as a midnight timestamp. Local, naive.
+      item_count: Number of rows in fact_order_items for this order. ORDER-level value; repeats if joined to items.
+      order_payment_total: Sum of payment_value across the order's payments. ORDER-level value; repeats if joined to items or payments.
+      is_deleted: Soft-delete flag. TRUE means the order was logically removed (test, duplicate or fraudulent order).
+      deleted_at: When the order was soft-deleted.
+  fact_order_items:
+    grain: one row per item line within an order
+    description: Line items. Many rows per order.
+    columns:
+      order_id: Foreign key to fact_orders.
+      order_item_id: Line number within the order (1, 2, 3 ...).
+      product_key: Foreign key to dim_product.
+      seller_key: Foreign key to dim_seller.
+      shipping_limit_ts: Seller's shipping deadline. Local, naive.
+      price: Item price in BRL, excluding freight.
+      freight_value: Freight charged for this item in BRL.
+  fact_payments:
+    grain: one row per payment instalment record within an order
+    description: Payments. An order can be paid with several payment types and rows.
+    columns:
+      order_id: Foreign key to fact_orders.
+      payment_sequential: Sequence number of the payment within the order.
+      payment_type: "credit_card, boleto, voucher, debit_card or not_defined."
+      payment_installments: Number of instalments chosen.
+      payment_value: Amount paid in BRL. Includes freight and any instalment interest.
+  fact_reviews:
+    grain: one row per review
+    description: Customer reviews. Usually one per order, occasionally several.
+    columns:
+      review_id: Review identifier.
+      order_id: Foreign key to fact_orders.
+      review_score: Score from 1 (worst) to 5 (best).
+      review_created_date: Date the review survey was sent. Local date.
+      review_answered_at: "When the customer answered. TIMESTAMP without time zone, stored in UTC (unlike the order timestamps, which are local)."
+  dim_customer:
+    grain: one row per customer_id (which is one per order)
+    description: Customer records. customer_id is assigned per order, so one person appears under many customer_ids.
+    columns:
+      customer_key: Surrogate key referenced by fact_orders.
+      customer_id: Per-order customer record id. NOT the person.
+      customer_unique_id: The real person. Use this to count or group customers.
+      zip_code_prefix: Brazilian ZIP prefix.
+      city: City, lowercase.
+      state: Two-letter Brazilian state code.
+      is_deleted: Erasure flag. TRUE means the person asked to be erased and must be excluded from customer-level metrics.
+  dim_product:
+    grain: one row per product
+    description: Product catalogue.
+    columns:
+      product_key: Surrogate key.
+      product_id: Business key.
+      category_name: English category name. NULL for some products.
+      name_length: Characters in the product name.
+      description_length: Characters in the product description.
+      photos_qty: Number of product photos.
+      weight_g: Weight in grams.
+      length_cm: Length in cm.
+      height_cm: Height in cm.
+      width_cm: Width in cm.
+  dim_seller:
+    grain: one row per seller
+    description: Seller records.
+    columns:
+      seller_key: Surrogate key.
+      seller_id: Business key.
+      zip_code_prefix: Seller ZIP prefix.
+      city: Seller city, lowercase.
+      state: Seller state code.
+  dim_date:
+    grain: one row per calendar day, 2016-2018
+    description: Calendar dimension.
+    columns:
+      date_key: The date.
+      year: Calendar year.
+      quarter: Calendar quarter 1-4.
+      month: Month number 1-12.
+      month_name: English month name.
+      day_of_week: ISO day of week, 1 = Monday ... 7 = Sunday.
+      is_weekend: TRUE for Saturday and Sunday.
+
+rules:
+  - "Warehouse snapshot: the data ends on 2018-08-31 (the as-of date). Never use CURRENT_DATE, NOW() or other relative-date functions; anchor 'recent', 'last N days' and 'currently' to 2018-08-31."
+  - "Soft deletes: always exclude fact_orders rows where is_deleted is TRUE. Items, payments and reviews belong to their order, so join fact_orders and apply the filter."
+  - "Customer erasure: customer-level metrics (counts of customers, repeat customers, revenue per customer) exclude dim_customer rows where is_deleted is TRUE. Revenue totals by customer attribute (for example by state) are financial facts and keep orders of erased customers."
+  - "Customer identity: a customer is a person = customer_unique_id. customer_id is per order and must never be counted as customers."
+  - "Status values are inconsistent in casing and whitespace. Always compare lower(trim(order_status))."
+  - "Time zones: order timestamps are naive America/Sao_Paulo local time; fact_reviews.review_answered_at is naive UTC. Convert with (ts AT TIME ZONE 'UTC') AT TIME ZONE 'America/Sao_Paulo' before comparing with order timestamps or bucketing into local days, hours or months."
+  - "Date ranges on TIMESTAMP columns are half-open: ts >= start AND ts < the day after the last day. Never use <= or BETWEEN with a date-only end."
+  - "Fan-out: fact_order_items, fact_payments and fact_reviews are all one-to-many from fact_orders and are siblings of each other. Joining two of them multiplies rows. Aggregate each to the question's grain before combining (CTEs), use COUNT(DISTINCT key), or use EXISTS / IN for filters. Order-level columns (item_count, order_payment_total) repeat when joined to a child table."
+  - "When asked to count orders, count orders (DISTINCT order_id), not item or payment rows."
+
+metrics:
+  net_revenue:
+    aliases: [revenue, sales, total revenue]
+    definition: "Sum of item price (excluding freight) on delivered, non-deleted orders. 'Revenue' without qualifier always means net revenue."
+    sql: |
+      SELECT sum(i.price)
+      FROM fact_orders o JOIN fact_order_items i ON i.order_id = o.order_id
+      WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+  gross_merchandise_value:
+    aliases: [gmv, gross sales]
+    definition: "Sum of item price (excluding freight) on non-deleted orders whose status is not canceled or unavailable."
+    sql: |
+      SELECT sum(i.price)
+      FROM fact_orders o JOIN fact_order_items i ON i.order_id = o.order_id
+      WHERE NOT o.is_deleted AND lower(trim(o.order_status)) NOT IN ('canceled', 'unavailable')
+  cash_collected:
+    aliases: [cash, payments received]
+    definition: "Sum of payment_value on non-deleted orders whose status is not canceled or unavailable. Includes freight and instalment interest."
+    sql: |
+      SELECT sum(p.payment_value)
+      FROM fact_orders o JOIN fact_payments p ON p.order_id = o.order_id
+      WHERE NOT o.is_deleted AND lower(trim(o.order_status)) NOT IN ('canceled', 'unavailable')
+  average_order_value:
+    aliases: [aov, basket size]
+    definition: "net_revenue divided by the number of delivered, non-deleted orders that have at least one item."
+    sql: |
+      SELECT sum(i.price) / count(DISTINCT o.order_id)
+      FROM fact_orders o JOIN fact_order_items i ON i.order_id = o.order_id
+      WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'
+  active_customers:
+    aliases: [active customer, active users, current customers]
+    definition: "Distinct customer_unique_id (non-erased) with at least one non-deleted order that is not canceled or unavailable, purchased in the 90 days ending on and including the as-of date 2018-08-31 (purchase time >= 2018-06-03 and < 2018-09-01)."
+    sql: |
+      SELECT count(DISTINCT c.customer_unique_id)
+      FROM fact_orders o JOIN dim_customer c ON c.customer_key = o.customer_key
+      WHERE NOT o.is_deleted AND NOT c.is_deleted
+        AND lower(trim(o.order_status)) NOT IN ('canceled', 'unavailable')
+        AND o.order_purchase_ts >= TIMESTAMP '2018-06-03' AND o.order_purchase_ts < TIMESTAMP '2018-09-01'
+  late_delivery_rate:
+    aliases: [late orders, late delivery, delivery lateness]
+    definition: "Among delivered, non-deleted orders with a delivery timestamp, the percentage whose delivery calendar date is later than the estimated delivery calendar date (compare ::DATE values, not timestamps)."
+    sql: |
+      SELECT 100.0 * count(*) FILTER (WHERE order_delivered_customer_ts::DATE > order_estimated_delivery_ts::DATE) / count(*)
+      FROM fact_orders
+      WHERE NOT is_deleted AND lower(trim(order_status)) = 'delivered' AND order_delivered_customer_ts IS NOT NULL
+  freight_ratio:
+    aliases: [freight share, freight percentage]
+    definition: "Freight value divided by net revenue (item price only) over delivered, non-deleted orders, as a percentage."
+    sql: |
+      SELECT 100.0 * sum(i.freight_value) / sum(i.price)
+      FROM fact_orders o JOIN fact_order_items i ON i.order_id = o.order_id
+      WHERE NOT o.is_deleted AND lower(trim(o.order_status)) = 'delivered'

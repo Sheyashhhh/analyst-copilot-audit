@@ -1,0 +1,31 @@
+{
+  "seed": 20260101,
+  "row_counts": {
+    "dim_date": 1096,
+    "dim_customer": 99441,
+    "dim_product": 32951,
+    "dim_seller": 3095,
+    "fact_orders": 99441,
+    "fact_order_items": 112650,
+    "fact_payments": 103886,
+    "fact_reviews": 99224
+  },
+  "traps": {
+    "soft_delete_orders": 2452,
+    "soft_delete_customers_rows": 1446,
+    "status_raw_distinct": 32,
+    "status_canonical_distinct": 8,
+    "orders_with_multiple_items": 9803,
+    "orders_with_multiple_payments": 2961,
+    "orders_with_multiple_reviews": 547,
+    "customer_ids_vs_unique_people": [
+      99441,
+      96096
+    ]
+  },
+  "fingerprint": {
+    "orders": 99441,
+    "items_price_sum": 13591643.7,
+    "payments_sum": 16008872.12
+  }
+}

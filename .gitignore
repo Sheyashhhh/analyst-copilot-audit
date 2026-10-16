@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+.pytest_cache/
+.venv/
+venv/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Downloaded source data and generated warehouse
+data/raw/
+data/warehouse.duckdb
+data/*.duckdb.wal
+
+# Local evaluation cache and generated run artifacts
+results/cache/
+results/runs/
+results/REPORT.md
+results/SMOKE_REPORT.md
+
+# Editor / OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
